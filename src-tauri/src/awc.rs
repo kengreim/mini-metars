@@ -160,8 +160,8 @@ pub struct MetarDto {
     #[serde(deserialize_with = "ts_seconds::deserialize")]
     pub obs_time: DateTime<Utc>,
     pub report_time: String,
-    pub temp: f64,
-    pub dewp: f64,
+    pub temp: Option<f64>,
+    pub dewp: Option<f64>,
     pub wdir: Option<StringOrI32>,
     pub wspd: Option<i32>,
     pub wgst: Option<i32>,

@@ -37,7 +37,7 @@ fn main() {
     tauri::Builder::default()
         .manage(LockedState(RwLock::new(AppState::new())))
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![initialize_client, fetch_metar])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -58,14 +58,14 @@ async fn initialize_client_private(state: &State<'_, LockedState>) -> Result<(),
 }
 
 #[tauri::command]
-async fn fetch_metar(icao_id: &str, state: State<'_, LockedState>) -> Result<MetarDto, String> {
+async fn fetch_metar(id: &str, state: State<'_, LockedState>) -> Result<MetarDto, String> {
     if state.0.read().await.awc_client.is_none() {
         initialize_client_private(&state).await?;
     }
 
     if let Some(client) = &state.0.read().await.awc_client {
         client
-            .fetch_metar(icao_id)
+            .fetch_metar(id)
             .await
             .map_err(|e| format!("Error fetching METARs: {e:?}"))
     } else {
