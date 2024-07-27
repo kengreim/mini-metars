@@ -1,5 +1,6 @@
 import { Component, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { lookup_station_cmd, update_metar_cmd } from "./tauri.ts";
+import { logIfDev } from "./logging.ts";
 
 interface MetarProps {
   requestedId: string;
@@ -19,10 +20,11 @@ export const Metar: Component<MetarProps> = (props) => {
   const [showFullMetar, setShowFullMetar] = createSignal(false);
 
   // Update handle
-  const [timer, setTimer] = createSignal(-1);
+  const [timerHandle, setTimerHandle] = createSignal(-1);
 
   const fetchAndUpdateStation = async () => {
     try {
+      logIfDev("Looking up requested ID", props.requestedId);
       let station = await lookup_station_cmd(props.requestedId);
       setIcaoId(station.icaoId);
       setDisplayId(station.faaId);
@@ -39,13 +41,18 @@ export const Metar: Component<MetarProps> = (props) => {
     }
 
     try {
+      logIfDev("Starting update check for id", icaoId());
       let res = await update_metar_cmd(icaoId());
+      logIfDev("Retrieved METAR", icaoId(), res);
       let newTimestamp = new Date(res.metar.obsTime);
       if (currentTimestamp() === undefined || newTimestamp > currentTimestamp()!) {
+        logIfDev("New METAR found", icaoId());
         setCurrentTimestamp(newTimestamp);
         setAltimeter(res.altimeter.toFixed(2));
         setWind(res.wind_string);
         setRawMetar(res.metar.rawOb);
+      } else {
+        logIfDev("Fetched METAR same as displayed", icaoId(), currentTimestamp());
       }
     } catch (error) {
       console.log(error);
@@ -57,7 +64,7 @@ export const Metar: Component<MetarProps> = (props) => {
       await fetchAndUpdateStation();
       if (validId()) {
         await update();
-        setTimer(setInterval(update, 1000 * 120));
+        setTimerHandle(setInterval(update, 1000 * 120));
       }
     } catch (error) {
       console.log(error);
@@ -65,8 +72,8 @@ export const Metar: Component<MetarProps> = (props) => {
   });
 
   onCleanup(() => {
-    if (timer() != -1) {
-      clearInterval(timer());
+    if (timerHandle() != -1) {
+      clearInterval(timerHandle());
     }
   });
 
