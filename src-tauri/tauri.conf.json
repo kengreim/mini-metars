@@ -14,7 +14,8 @@
         "title": "Mini METARs",
         "width": 250,
         "height": 34,
-        "alwaysOnTop": true
+        "alwaysOnTop": true,
+        "decorations": false
       }
     ],
     "security": {

@@ -18,6 +18,10 @@ function App() {
   let containerRef: HTMLDivElement | undefined;
   let window = getCurrentWindow();
 
+  // Setup titlebar
+  document.getElementById("titlebar-minimize")?.addEventListener("click", () => window.minimize());
+  document.getElementById("titlebar-close")?.addEventListener("click", () => window.close());
+
   async function resetWindowHeight() {
     if (containerRef !== undefined) {
       let currentSize = await window.innerSize();
@@ -26,7 +30,7 @@ function App() {
       let scaleFactor = await window.scaleFactor();
       logIfDev("Scale factor", scaleFactor);
       await window.setSize(
-        new PhysicalSize(currentSize.width, containerRef.offsetHeight * scaleFactor)
+        new PhysicalSize(currentSize.width, (containerRef.offsetHeight + 24) * scaleFactor)
       );
     }
   }
@@ -48,8 +52,8 @@ function App() {
   }
 
   return (
-    <div class="flex flex-col bg-black text-white h-screen">
-      <div class="flex flex-col" ref={containerRef}>
+    <div class="flex flex-col bg-black text-white" ref={containerRef}>
+      <div class="flex flex-col grow">
         <For each={ids}>
           {(id, i) => (
             <div class="flex">
