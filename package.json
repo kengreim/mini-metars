@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@solid-primitives/autofocus": "^0.0.111",
     "@tauri-apps/api": ">=2.0.0-beta.0",
     "@tauri-apps/plugin-shell": ">=2.0.0-beta.0",
     "solid-js": "^1.7.8"

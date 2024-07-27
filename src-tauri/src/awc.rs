@@ -114,6 +114,24 @@ impl AviationWeatherCenterApi {
         Ok(map)
     }
 
+    pub fn lookup_station(&self, lookup_id: &str) -> Result<Station, anyhow::Error> {
+        let uppercase = lookup_id.to_uppercase();
+        if let (Some(stations), Some(faa_icao_map)) = (&self.stations, &self.faa_icao_lookup) {
+            if let Some(station) = stations.get(&uppercase) {
+                Ok(station.clone())
+            } else if let Some(id) = faa_icao_map.get(&uppercase) {
+                stations.get(&id.to_uppercase()).map_or_else(
+                    || Err(anyhow!("Error: inconsistency between FAA and ICAO data")),
+                    |s| Ok(s.clone()),
+                )
+            } else {
+                bail!("Error: could not find ID in ICAO or FAA lookups")
+            }
+        } else {
+            bail!("Error: station data not initialized")
+        }
+    }
+
     fn sanitize_id(&self, id: &str) -> String {
         self.stations
             .as_ref()
@@ -128,7 +146,7 @@ impl AviationWeatherCenterApi {
                         .get(id)
                         .map_or_else(|| id.to_uppercase(), ToString::to_string)
                 } else {
-                    id.to_string()
+                    id.to_uppercase()
                 }
             })
     }
