@@ -1,6 +1,6 @@
 import "./styles.css";
 import { Metar } from "./Metar.tsx";
-import { batch, createSignal, For } from "solid-js";
+import { batch, createEffect, createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
 // @ts-ignore
 import { autofocus } from "@solid-primitives/autofocus";
@@ -40,6 +40,13 @@ function App() {
     await resetWindowHeight();
   }
 
+  const [heightTrigger, setHeightTrigger] = createSignal(0);
+
+  createEffect(async () => {
+    heightTrigger();
+    await resetWindowHeight();
+  });
+
   return (
     <div class="flex flex-col bg-black text-white h-screen">
       <div class="flex flex-col" ref={containerRef}>
@@ -60,7 +67,7 @@ function App() {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
                 </svg>
               </div>
-              <Metar requestedId={id} />
+              <Metar requestedId={id} heightTrigger={setHeightTrigger} />
             </div>
           )}
         </For>

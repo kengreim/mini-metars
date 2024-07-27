@@ -1,8 +1,9 @@
-import { Component, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { Component, createSignal, onCleanup, onMount, Setter, Show } from "solid-js";
 import { lookup_station_cmd, update_metar_cmd } from "./tauri.ts";
 
 interface MetarProps {
   requestedId: string;
+  heightTrigger: Setter<number>;
 }
 
 export const Metar: Component<MetarProps> = (props) => {
@@ -72,7 +73,10 @@ export const Metar: Component<MetarProps> = (props) => {
   return (
     <div
       class="flex flex-col mx-1 select-none cursor-pointer"
-      onClick={() => setShowFullMetar((prev) => !prev)}
+      onClick={() => {
+        setShowFullMetar((prev) => !prev);
+        props.heightTrigger((prev) => prev + 1);
+      }}
     >
       <div class="flex font-mono text-sm">
         <div class="w-12">{displayId()}</div>
