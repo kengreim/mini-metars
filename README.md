@@ -1,7 +1,4 @@
-# Tauri + Solid + Typescript
+# Mini METARs
+Mini METARs is a micro-utility to display up-to-date METAR information (primarily altimeter and wind direction + speed, with full METAR toggle-able) for a number of user-inputted airports/stations in a minimal on-top window.
 
-This template should help get you started developing with Tauri, Solid and Typescript in Vite.
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Built with Tauri, with a Rust backend for METAR fetching and a SolidJS frontend for UI actions.
