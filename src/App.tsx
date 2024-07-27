@@ -1,10 +1,11 @@
 import "./styles.css";
 import { Metar } from "./Metar.tsx";
-import { batch, createEffect, createSignal, For } from "solid-js";
+import { batch, createSignal, For } from "solid-js";
 import { createStore } from "solid-js/store";
 // @ts-ignore
 import { autofocus } from "@solid-primitives/autofocus";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
+import { logIfDev } from "./logging.ts";
 
 const [inputId, setInputId] = createSignal("");
 const [ids, setIds] = createStore<string[]>([]);
@@ -20,7 +21,13 @@ function App() {
   async function resetWindowHeight() {
     if (containerRef !== undefined) {
       let currentSize = await window.innerSize();
-      await window.setSize(new PhysicalSize(currentSize.width, containerRef.offsetHeight));
+      logIfDev("Current window size", currentSize);
+      logIfDev("containerRef height", containerRef.offsetHeight);
+      let scaleFactor = await window.scaleFactor();
+      logIfDev("Scale factor", scaleFactor);
+      await window.setSize(
+        new PhysicalSize(currentSize.width, containerRef.offsetHeight * scaleFactor)
+      );
     }
   }
 
@@ -39,13 +46,6 @@ function App() {
     setIds((ids) => removeIndex(ids, index));
     await resetWindowHeight();
   }
-
-  const [heightTrigger, setHeightTrigger] = createSignal(0);
-
-  createEffect(async () => {
-    heightTrigger();
-    await resetWindowHeight();
-  });
 
   return (
     <div class="flex flex-col bg-black text-white h-screen">
@@ -67,7 +67,7 @@ function App() {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
                 </svg>
               </div>
-              <Metar requestedId={id} heightTrigger={setHeightTrigger} />
+              <Metar requestedId={id} resizeFn={resetWindowHeight} />
             </div>
           )}
         </For>
