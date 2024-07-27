@@ -1,8 +1,8 @@
 [package]
-name = "mini-metars-2"
-version = "0.0.0"
+name = "mini-metars"
+version = "0.0.1"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["Ken Greim"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,4 +20,3 @@ flate2 = "1.0.30"
 reqwest = { version = "0.12.5", features = ["json"] }
 tokio = "1.39.1"
 chrono = { version = "0.4.38", features = ["serde"] }
-

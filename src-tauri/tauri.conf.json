@@ -1,6 +1,6 @@
 {
   "productName": "Mini METARs",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "identifier": "org.oakartcc.mini-metars",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -12,8 +12,9 @@
     "windows": [
       {
         "title": "Mini METARs",
-        "width": 800,
-        "height": 600
+        "width": 250,
+        "height": 34,
+        "alwaysOnTop": true
       }
     ],
     "security": {

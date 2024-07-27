@@ -1,6 +1,6 @@
 {
-  "name": "mini-metars-2",
-  "version": "0.0.0",
+  "name": "mini-metars",
+  "version": "0.0.1",
   "description": "",
   "type": "module",
   "scripts": {
