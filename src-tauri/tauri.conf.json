@@ -1,7 +1,7 @@
 {
-  "productName": "mini-metars-2",
+  "productName": "Mini METARs",
   "version": "0.0.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "org.oakartcc.mini-metars",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "mini-metars-2",
+        "title": "Mini METARs",
         "width": 800,
         "height": 600
       }
