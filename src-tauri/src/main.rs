@@ -4,25 +4,28 @@
 
 use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tauri::State;
-use tokio::sync::{OnceCell, RwLock};
+use tokio::sync::OnceCell;
 
 mod awc;
 
 pub struct AppState {
-    awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>
+    awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
 }
 
 impl AppState {
     #[must_use]
     pub const fn new() -> Self {
-        Self { awc_client: OnceCell::const_new() }
+        Self {
+            awc_client: OnceCell::const_new(),
+        }
     }
 
     pub async fn get_awc_client(&self) -> &Result<AviationWeatherCenterApi, anyhow::Error> {
-        self.awc_client.get_or_init(|| async {
-            AviationWeatherCenterApi::try_new().await
-        }).await
+        self.awc_client
+            .get_or_init(|| async { AviationWeatherCenterApi::try_new().await })
+            .await
     }
 }
 
@@ -32,16 +35,14 @@ impl Default for AppState {
     }
 }
 
-pub struct LockedState(pub RwLock<AppState>);
+type LockedState = Arc<AppState>;
+//pub struct LockedState(pub Arc<RwLock<AppState>>);
 
 fn main() {
     tauri::Builder::default()
-        .manage(LockedState(RwLock::new(AppState::new())))
+        .manage(Arc::new(AppState::new()))
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![
-            fetch_metar,
-            lookup_station
-        ])
+        .invoke_handler(tauri::generate_handler![fetch_metar, lookup_station])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -58,7 +59,7 @@ async fn fetch_metar(
     id: &str,
     state: State<'_, LockedState>,
 ) -> Result<FetchMetarResponse, String> {
-    if let Ok(client) = &state.0.read().await.get_awc_client().await {
+    if let Ok(client) = &state.get_awc_client().await {
         client
             .fetch_metar(id)
             .await
@@ -75,11 +76,16 @@ async fn fetch_metar(
 
 #[tauri::command]
 async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Station, String> {
-    if let Ok(client) = &state.0.read().await.get_awc_client().await {
+    if let Ok(client) = &state.get_awc_client().await {
         client
             .lookup_station(id)
             .map_err(|e| format!("Error looking up station {id}: {e:?}"))
     } else {
         Err("AWC Api Client not initialized".to_string())
     }
+}
+
+async fn start_vatsim_datafeed_loop(state: State<'_, LockedState>) {
+    let cloned_state = Arc::clone(&state);
+    std::thread::spawn(move || async {});
 }
