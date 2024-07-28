@@ -3,15 +3,38 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
+use std::cmp::min;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::State;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
+use tokio::time::sleep;
+use vatsim_utils::errors::VatsimUtilError;
+use vatsim_utils::live_api::Vatsim;
+use vatsim_utils::models::V3ResponseData;
 
 mod awc;
 
+pub struct VatsimDataFetch {
+    pub fetched_time: Instant,
+    pub data: Result<V3ResponseData, anyhow::Error>,
+}
+
+impl VatsimDataFetch {
+    pub fn new(data: Result<V3ResponseData, anyhow::Error>) -> Self {
+        Self {
+            fetched_time: Instant::now(),
+            data,
+        }
+    }
+}
+
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
+    vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
+    latest_vatsim_data: Mutex<Option<VatsimDataFetch>>,
 }
 
 impl AppState {
@@ -19,12 +42,20 @@ impl AppState {
     pub const fn new() -> Self {
         Self {
             awc_client: OnceCell::const_new(),
+            vatsim_client: OnceCell::const_new(),
+            latest_vatsim_data: Mutex::const_new(None),
         }
     }
 
     pub async fn get_awc_client(&self) -> &Result<AviationWeatherCenterApi, anyhow::Error> {
         self.awc_client
             .get_or_init(|| async { AviationWeatherCenterApi::try_new().await })
+            .await
+    }
+
+    pub async fn get_vatsim_client(&self) -> &Result<Vatsim, VatsimUtilError> {
+        self.vatsim_client
+            .get_or_init(|| async { Vatsim::new().await })
             .await
     }
 }
@@ -85,7 +116,44 @@ async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Stati
     }
 }
 
-async fn start_vatsim_datafeed_loop(state: State<'_, LockedState>) {
-    let cloned_state = Arc::clone(&state);
-    std::thread::spawn(move || async {});
+async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result<String, String> {
+    let mut data = state.latest_vatsim_data.lock().await;
+
+    if (*data)
+        .as_ref()
+        .map_or_else(|| true, |f| datafeed_is_stale(f))
+    {
+        *data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
+    }
+
+    if let Some(fetch) = &*data {
+        if let Ok(datafeed) = &fetch.data {
+            datafeed
+                .atis
+                .iter()
+                .find(|a| a.callsign.starts_with(icao_id))
+                .map_or_else(
+                    || Ok("-".to_string()),
+                    |a| a.clone().atis_code.map_or_else(|| Ok("_".to_string()), Ok),
+                )
+        } else {
+            Err("Could not retrieve datafeed".to_string())
+        }
+    } else {
+        Err("Could not retrieve datafeed".to_string())
+    }
+}
+
+fn datafeed_is_stale(fetch: &VatsimDataFetch) -> bool {
+    fetch.fetched_time.elapsed() > Duration::from_secs(60)
+}
+
+async fn fetch_vatsim_data(
+    state: &State<'_, LockedState>,
+) -> Result<V3ResponseData, anyhow::Error> {
+    if let Ok(client) = state.get_vatsim_client().await {
+        client.get_v3_data().await.map_err(Into::into)
+    } else {
+        Err(anyhow!("VATSIM API client not initialized".to_string()))
+    }
 }
