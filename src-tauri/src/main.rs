@@ -119,26 +119,24 @@ async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Stati
 async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result<String, String> {
     let mut data = state.latest_vatsim_data.lock().await;
 
-    if (*data)
-        .as_ref()
-        .map_or_else(|| true, |f| datafeed_is_stale(f))
-    {
+    if (*data).as_ref().map_or_else(|| true, datafeed_is_stale) {
         *data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
     }
 
     if let Some(fetch) = &*data {
-        if let Ok(datafeed) = &fetch.data {
-            datafeed
-                .atis
-                .iter()
-                .find(|a| a.callsign.starts_with(icao_id))
-                .map_or_else(
-                    || Ok("-".to_string()),
-                    |a| a.clone().atis_code.map_or_else(|| Ok("_".to_string()), Ok),
-                )
-        } else {
-            Err("Could not retrieve datafeed".to_string())
-        }
+        fetch.data.as_ref().map_or_else(
+            |_| Err("Could not retrieve datafeed".to_string()),
+            |datafeed| {
+                datafeed
+                    .atis
+                    .iter()
+                    .find(|a| a.callsign.starts_with(icao_id))
+                    .map_or_else(
+                        || Ok("-".to_string()),
+                        |a| a.clone().atis_code.map_or_else(|| Ok("-".to_string()), Ok),
+                    )
+            },
+        )
     } else {
         Err("Could not retrieve datafeed".to_string())
     }
