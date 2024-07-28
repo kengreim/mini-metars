@@ -22,6 +22,11 @@ function App() {
   document.getElementById("titlebar-minimize")?.addEventListener("click", () => window.minimize());
   document.getElementById("titlebar-close")?.addEventListener("click", () => window.close());
 
+  // Prevent right-click in prod
+  if (import.meta.env.PROD) {
+    document.addEventListener("contextmenu", (event) => event.preventDefault());
+  }
+
   async function resetWindowHeight() {
     if (containerRef !== undefined) {
       let currentSize = await window.innerSize();
