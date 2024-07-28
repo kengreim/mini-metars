@@ -5,12 +5,10 @@
 use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use std::cmp::min;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::State;
 use tokio::sync::{Mutex, OnceCell};
-use tokio::time::sleep;
 use vatsim_utils::errors::VatsimUtilError;
 use vatsim_utils::live_api::Vatsim;
 use vatsim_utils::models::V3ResponseData;
@@ -23,6 +21,7 @@ pub struct VatsimDataFetch {
 }
 
 impl VatsimDataFetch {
+    #[must_use]
     pub fn new(data: Result<V3ResponseData, anyhow::Error>) -> Self {
         Self {
             fetched_time: Instant::now(),

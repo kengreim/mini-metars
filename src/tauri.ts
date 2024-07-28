@@ -69,7 +69,7 @@ const updateMetarCmd = (id: string): Promise<FetchMetarResponse> =>
 const lookupStationCmd = (id: string): Promise<Station> => invoke("lookup_station", { id: id });
 
 const updateAtisLetterCmd = (id: string): Promise<string> =>
-  invoke("get_atis_letter", { icao_id: id });
+  invoke("get_atis_letter", { icaoId: id });
 
 export { updateMetarCmd, lookupStationCmd, updateAtisLetterCmd };
 export type { CloudLayer, MetarDto };
