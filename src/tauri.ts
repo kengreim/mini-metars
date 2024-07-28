@@ -63,10 +63,13 @@ interface FetchMetarResponse {
   altimeter: number;
 }
 
-const update_metar_cmd = (id: string): Promise<FetchMetarResponse> =>
+const updateMetarCmd = (id: string): Promise<FetchMetarResponse> =>
   invoke("fetch_metar", { id: id });
 
-const lookup_station_cmd = (id: string): Promise<Station> => invoke("lookup_station", { id: id });
+const lookupStationCmd = (id: string): Promise<Station> => invoke("lookup_station", { id: id });
 
-export { update_metar_cmd, lookup_station_cmd };
+const updateAtisLetterCmd = (id: string): Promise<string> =>
+  invoke("get_atis_letter", { icao_id: id });
+
+export { updateMetarCmd, lookupStationCmd, updateAtisLetterCmd };
 export type { CloudLayer, MetarDto };

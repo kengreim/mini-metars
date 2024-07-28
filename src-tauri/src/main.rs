@@ -73,7 +73,11 @@ fn main() {
     tauri::Builder::default()
         .manage(Arc::new(AppState::new()))
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![fetch_metar, lookup_station])
+        .invoke_handler(tauri::generate_handler![
+            fetch_metar,
+            lookup_station,
+            get_atis_letter
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -116,6 +120,7 @@ async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Stati
     }
 }
 
+#[tauri::command]
 async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result<String, String> {
     let mut data = state.latest_vatsim_data.lock().await;
 

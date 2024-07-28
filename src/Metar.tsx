@@ -1,5 +1,5 @@
 import { Component, createSignal, onCleanup, onMount, Show } from "solid-js";
-import { lookup_station_cmd, update_metar_cmd } from "./tauri.ts";
+import { lookupStationCmd, updateAtisLetterCmd, updateMetarCmd } from "./tauri.ts";
 import { logIfDev } from "./logging.ts";
 
 interface MetarProps {
@@ -24,14 +24,16 @@ export const Metar: Component<MetarProps> = (props) => {
   const [wind, setWind] = createSignal("");
   const [rawMetar, setRawMetar] = createSignal("");
   const [showFullMetar, setShowFullMetar] = createSignal(false);
+  const [atisLetter, setAtisLetter] = createSignal("-");
 
   // Update handle
-  const [timerHandle, setTimerHandle] = createSignal(-1);
+  const [metarTimerHandle, setMetarTimerHandle] = createSignal(-1);
+  const [letterTimerHandle, setLetterTimerHandle] = createSignal(-1);
 
   const fetchAndUpdateStation = async () => {
     try {
       logIfDev("Looking up requested ID", props.requestedId);
-      let station = await lookup_station_cmd(props.requestedId);
+      let station = await lookupStationCmd(props.requestedId);
       setIcaoId(station.icaoId);
       setDisplayId(station.faaId);
       setValidId(true);
@@ -41,14 +43,14 @@ export const Metar: Component<MetarProps> = (props) => {
     }
   };
 
-  const update = async () => {
+  const updateMetar = async () => {
     if (!validId()) {
       return;
     }
 
     try {
       logIfDev("Starting update check for id", icaoId());
-      let res = await update_metar_cmd(icaoId());
+      let res = await updateMetarCmd(icaoId());
       logIfDev("Retrieved METAR", icaoId(), res);
       let newTimestamp = new Date(res.metar.obsTime);
       if (currentTimestamp() === undefined || newTimestamp > currentTimestamp()!) {
@@ -65,12 +67,30 @@ export const Metar: Component<MetarProps> = (props) => {
     }
   };
 
+  const updateAtisLetter = async () => {
+    if (!validId()) {
+      return;
+    }
+
+    try {
+      logIfDev("Starting ATIS letter fetch for id", icaoId());
+      let res = await updateAtisLetterCmd(icaoId());
+      logIfDev("Retrieved ATIS Letter", res);
+      setAtisLetter(res);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   onMount(async () => {
     try {
       await fetchAndUpdateStation();
       if (validId()) {
-        await update();
-        setTimerHandle(setInterval(update, 1000 * getRandomInt(120, 150)));
+        await updateMetar();
+        setMetarTimerHandle(setInterval(updateMetar, 1000 * getRandomInt(120, 150)));
+
+        await updateAtisLetter();
+        setLetterTimerHandle(setInterval(updateAtisLetter, 1000 * getRandomInt(60, 90)));
       }
     } catch (error) {
       console.log(error);
@@ -78,8 +98,12 @@ export const Metar: Component<MetarProps> = (props) => {
   });
 
   onCleanup(() => {
-    if (timerHandle() != -1) {
-      clearInterval(timerHandle());
+    if (metarTimerHandle() != -1) {
+      clearInterval(metarTimerHandle());
+    }
+
+    if (letterTimerHandle() != -1) {
+      clearInterval(letterTimerHandle());
     }
   });
 
@@ -93,6 +117,7 @@ export const Metar: Component<MetarProps> = (props) => {
     >
       <div class="flex font-mono text-sm">
         <div class="w-12">{displayId()}</div>
+        <div class="w-8">{atisLetter()}</div>
         <div class="w-16">{altimeter()}</div>
         <div class="flex-grow">{wind()}</div>
       </div>
