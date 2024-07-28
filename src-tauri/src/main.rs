@@ -5,18 +5,24 @@
 use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use tokio::sync::RwLock;
+use tokio::sync::{OnceCell, RwLock};
 
 mod awc;
 
 pub struct AppState {
-    pub awc_client: Option<AviationWeatherCenterApi>,
+    awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>
 }
 
 impl AppState {
     #[must_use]
     pub const fn new() -> Self {
-        Self { awc_client: None }
+        Self { awc_client: OnceCell::const_new() }
+    }
+
+    pub async fn get_awc_client(&self) -> &Result<AviationWeatherCenterApi, anyhow::Error> {
+        self.awc_client.get_or_init(|| async {
+            AviationWeatherCenterApi::try_new().await
+        }).await
     }
 }
 
@@ -33,27 +39,11 @@ fn main() {
         .manage(LockedState(RwLock::new(AppState::new())))
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            initialize_client,
             fetch_metar,
             lookup_station
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[tauri::command]
-async fn initialize_client(state: State<'_, LockedState>) -> Result<(), String> {
-    initialize_client_private(&state).await
-}
-
-async fn initialize_client_private(state: &State<'_, LockedState>) -> Result<(), String> {
-    match AviationWeatherCenterApi::try_new().await {
-        Ok(client) => {
-            state.0.write().await.awc_client = Some(client);
-            Ok(())
-        }
-        Err(e) => Err(e.to_string()),
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -68,11 +58,7 @@ async fn fetch_metar(
     id: &str,
     state: State<'_, LockedState>,
 ) -> Result<FetchMetarResponse, String> {
-    if state.0.read().await.awc_client.is_none() {
-        initialize_client_private(&state).await?;
-    }
-
-    if let Some(client) = &state.0.read().await.awc_client {
+    if let Ok(client) = &state.0.read().await.get_awc_client().await {
         client
             .fetch_metar(id)
             .await
@@ -89,11 +75,7 @@ async fn fetch_metar(
 
 #[tauri::command]
 async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Station, String> {
-    if state.0.read().await.awc_client.is_none() {
-        initialize_client_private(&state).await?;
-    }
-
-    if let Some(client) = &state.0.read().await.awc_client {
+    if let Ok(client) = &state.0.read().await.get_awc_client().await {
         client
             .lookup_station(id)
             .map_err(|e| format!("Error looking up station {id}: {e:?}"))

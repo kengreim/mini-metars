@@ -7,6 +7,12 @@ interface MetarProps {
   resizeFn: () => Promise<void>;
 }
 
+function getRandomInt(min: number, max: number) {
+  const minCeiled = Math.ceil(min);
+  const maxFloored = Math.floor(max);
+  return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+}
+
 export const Metar: Component<MetarProps> = (props) => {
   const [icaoId, setIcaoId] = createSignal("");
   const [currentTimestamp, setCurrentTimestamp] = createSignal<Date>();
@@ -64,7 +70,7 @@ export const Metar: Component<MetarProps> = (props) => {
       await fetchAndUpdateStation();
       if (validId()) {
         await update();
-        setTimerHandle(setInterval(update, 1000 * 120));
+        setTimerHandle(setInterval(update, 1000 * getRandomInt(120, 150)));
       }
     } catch (error) {
       console.log(error);
