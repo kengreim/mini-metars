@@ -116,9 +116,9 @@ export const Metar: Component<MetarProps> = (props) => {
       }}
     >
       <div class="flex font-mono text-sm">
-        <div class="w-12">{displayId()}</div>
-        <div class="w-8">{atisLetter()}</div>
-        <div class="w-16">{altimeter()}</div>
+        <div class="w-8">{displayId()}</div>
+        <div class="w-10 text-center">{atisLetter()}</div>
+        <div class="w-16 text-center">{altimeter()}</div>
         <div class="flex-grow">{wind()}</div>
       </div>
       <Show when={showFullMetar() && rawMetar() !== ""}>

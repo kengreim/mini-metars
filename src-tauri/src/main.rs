@@ -11,7 +11,7 @@ use tauri::State;
 use tokio::sync::{Mutex, OnceCell};
 use vatsim_utils::errors::VatsimUtilError;
 use vatsim_utils::live_api::Vatsim;
-use vatsim_utils::models::V3ResponseData;
+use vatsim_utils::models::{Atis, V3ResponseData};
 
 mod awc;
 
@@ -131,19 +131,44 @@ async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result
         fetch.data.as_ref().map_or_else(
             |_| Err("Could not retrieve datafeed".to_string()),
             |datafeed| {
-                datafeed
+                let found_atis: Vec<&Atis> = datafeed
                     .atis
                     .iter()
-                    .find(|a| a.callsign.starts_with(icao_id))
-                    .map_or_else(
-                        || Ok("-".to_string()),
-                        |a| a.clone().atis_code.map_or_else(|| Ok("-".to_string()), Ok),
-                    )
+                    .filter(|a| a.callsign.starts_with(icao_id))
+                    .collect();
+
+                let letter_str: String = match found_atis.len() {
+                    1 => found_atis[0]
+                        .atis_code
+                        .as_ref()
+                        .map_or_else(|| "-".to_string(), ToString::to_string),
+                    2 => {
+                        let arrival = filter_by_callsign_pattern(&found_atis, "_A_");
+                        let departure = filter_by_callsign_pattern(&found_atis, "_D_");
+                        format!("{arrival}/{departure}")
+                    }
+                    _ => "-".to_string(),
+                };
+
+                Ok(letter_str)
             },
         )
     } else {
         Err("Could not retrieve datafeed".to_string())
     }
+}
+
+fn filter_by_callsign_pattern(atis: &[&Atis], pattern: &str) -> String {
+    atis.iter()
+        .find(|s| s.callsign.contains(pattern))
+        .map_or_else(
+            || "-".to_string(),
+            |a| {
+                a.atis_code
+                    .as_ref()
+                    .map_or_else(|| "-".to_string(), ToString::to_string)
+            },
+        )
 }
 
 fn datafeed_is_stale(fetch: &VatsimDataFetch) -> bool {
