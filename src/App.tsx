@@ -37,16 +37,15 @@ function App() {
       logIfDev("containerRef height", containerRef.offsetHeight);
       let scaleFactor = await window.scaleFactor();
       logIfDev("Scale factor", scaleFactor);
-      setHideScroll(true);
       await window.setSize(
         new PhysicalSize(currentSize.width, (containerRef.offsetHeight + 24) * scaleFactor)
       );
-      setHideScroll(false);
     }
   }
 
   async function addStation(e: SubmitEvent) {
     e.preventDefault();
+    setHideScroll(true);
     batch(() => {
       if (inputId().length >= 3 && inputId().length <= 4) {
         setIds(ids.length, inputId());
@@ -54,6 +53,7 @@ function App() {
       }
     });
     await resetWindowHeight();
+    setHideScroll(false);
   }
 
   async function removeStation(index: number) {
