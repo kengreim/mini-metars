@@ -88,7 +88,11 @@ function App() {
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
                   </svg>
                 </div>
-                <Metar requestedId={id} resizeFn={resetWindowHeight} />
+                <Metar
+                  requestedId={id}
+                  resizeFn={resetWindowHeight}
+                  scrollbarHide={setHideScroll}
+                />
               </div>
             )}
           </For>
