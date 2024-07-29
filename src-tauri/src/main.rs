@@ -4,8 +4,9 @@
 
 use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
 use anyhow::anyhow;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 use tauri::State;
 use tokio::sync::{Mutex, OnceCell};
@@ -29,6 +30,11 @@ impl VatsimDataFetch {
         }
     }
 }
+
+static INFO_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"INFO ([A-Z])").unwrap());
+
+static INFORMATION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"INFORMATION ([A-Z])").unwrap());
 
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
@@ -138,10 +144,10 @@ async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result
                     .collect();
 
                 let letter_str: String = match found_atis.len() {
-                    1 => found_atis[0]
-                        .atis_code
-                        .as_ref()
-                        .map_or_else(|| "-".to_string(), ToString::to_string),
+                    1 => found_atis[0].atis_code.as_ref().map_or_else(
+                        || parse_atis_text(found_atis[0].text_atis.as_ref()),
+                        ToString::to_string,
+                    ),
                     2 => {
                         let arrival = filter_by_callsign_pattern(&found_atis, "_A_");
                         let departure = filter_by_callsign_pattern(&found_atis, "_D_");
@@ -164,11 +170,28 @@ fn filter_by_callsign_pattern(atis: &[&Atis], pattern: &str) -> String {
         .map_or_else(
             || "-".to_string(),
             |a| {
-                a.atis_code
-                    .as_ref()
-                    .map_or_else(|| "-".to_string(), ToString::to_string)
+                a.atis_code.as_ref().map_or_else(
+                    || parse_atis_text(a.text_atis.as_ref()),
+                    ToString::to_string,
+                )
             },
         )
+}
+
+fn parse_atis_text(text_lines: Option<&Vec<String>>) -> String {
+    text_lines.map_or_else(
+        || "-".to_string(),
+        |lines| {
+            let joined = lines.join(" ");
+            if let Some(c) = INFO_REGEX.captures(&joined) {
+                c[1].to_string()
+            } else if let Some(c) = INFORMATION_REGEX.captures(&joined) {
+                c[1].to_string()
+            } else {
+                "-".to_string()
+            }
+        },
+    )
 }
 
 fn datafeed_is_stale(fetch: &VatsimDataFetch) -> bool {
