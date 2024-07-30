@@ -101,7 +101,7 @@ function App() {
               id="stationId"
               name="stationId"
               type="text"
-              class="w-16 text-white font-mono bg-gray-900 mx-1 my-1 border-gray-700 border focus:outline-none focus:border-gray-500 px-1"
+              class="w-16 text-white font-mono bg-gray-900 mx-1 my-1 border-gray-700 border focus:outline-none focus:border-gray-500 px-1 rounded"
               value={inputId()}
               onInput={(e) => setInputId(e.currentTarget.value)}
               use:autofocus
