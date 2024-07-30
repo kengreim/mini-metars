@@ -1,6 +1,6 @@
 [package]
 name = "mini-metars"
-version = "0.0.1"
+version = "0.0.2"
 description = "A small on-top display for METARs"
 authors = ["Ken Greim"]
 edition = "2021"
