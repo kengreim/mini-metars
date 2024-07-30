@@ -31,11 +31,6 @@ impl VatsimDataFetch {
     }
 }
 
-static INFO_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"INFO ([A-Z])").unwrap());
-
-static INFORMATION_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"INFORMATION ([A-Z])").unwrap());
-
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
@@ -190,6 +185,10 @@ fn parse_atis_code(atis: &Atis) -> String {
 }
 
 fn parse_code_from_text(text_lines: &[String]) -> Option<char> {
+    static INFO_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"INFO ([A-Z])").unwrap());
+    static INFORMATION_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"INFORMATION ([A-Z])").unwrap());
+
     let joined = text_lines.join(" ");
     INFO_REGEX.captures(&joined).map_or_else(
         || {
