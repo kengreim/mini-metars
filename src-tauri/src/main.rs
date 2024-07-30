@@ -72,7 +72,6 @@ impl Default for AppState {
 }
 
 type LockedState = Arc<AppState>;
-//pub struct LockedState(pub Arc<RwLock<AppState>>);
 
 fn main() {
     tauri::Builder::default()
@@ -144,15 +143,12 @@ async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result
                     .collect();
 
                 let letter_str: String = match found_atis.len() {
-                    1 => found_atis[0].atis_code.as_ref().map_or_else(
-                        || parse_atis_text(found_atis[0].text_atis.as_ref()),
-                        ToString::to_string,
+                    1 => parse_atis_code(found_atis[0]),
+                    2 => format!(
+                        "{}/{}",
+                        filter_callsign_and_parse(&found_atis, "_A_"),
+                        filter_callsign_and_parse(&found_atis, "_D_")
                     ),
-                    2 => {
-                        let arrival = filter_by_callsign_pattern(&found_atis, "_A_");
-                        let departure = filter_by_callsign_pattern(&found_atis, "_D_");
-                        format!("{arrival}/{departure}")
-                    }
                     _ => "-".to_string(),
                 };
 
@@ -164,33 +160,44 @@ async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result
     }
 }
 
-fn filter_by_callsign_pattern(atis: &[&Atis], pattern: &str) -> String {
-    atis.iter()
-        .find(|s| s.callsign.contains(pattern))
-        .map_or_else(
-            || "-".to_string(),
-            |a| {
-                a.atis_code.as_ref().map_or_else(
-                    || parse_atis_text(a.text_atis.as_ref()),
-                    ToString::to_string,
-                )
-            },
-        )
+fn filter_callsign_and_parse(atises: &[&Atis], pat: &str) -> String {
+    atises
+        .iter()
+        .find(|s| s.callsign.contains(pat))
+        .map_or_else(|| "-".to_string(), |a| parse_atis_code(a))
 }
 
-fn parse_atis_text(text_lines: Option<&Vec<String>>) -> String {
-    text_lines.map_or_else(
-        || "-".to_string(),
-        |lines| {
-            let joined = lines.join(" ");
-            if let Some(c) = INFO_REGEX.captures(&joined) {
-                c[1].to_string()
-            } else if let Some(c) = INFORMATION_REGEX.captures(&joined) {
-                c[1].to_string()
+fn parse_atis_code(atis: &Atis) -> String {
+    match (&atis.atis_code, &atis.text_atis) {
+        (Some(code), Some(text_lines)) => {
+            // Check for special case that letter in ATIS text has advanced but `atis_code` field has not yet
+            if let (Some(c), Some(text_c)) = (code.chars().next(), parse_code_from_text(text_lines))
+            {
+                match (text_c as u32) - (c as u32) {
+                    1 => text_c.to_string(),
+                    _ => c.to_string(),
+                }
             } else {
-                "-".to_string()
+                code.clone()
             }
+        }
+        (Some(code), None) => code.clone(),
+        (None, Some(text_lines)) => {
+            parse_code_from_text(text_lines).map_or_else(|| "-".to_string(), |c| c.to_string())
+        }
+        _ => "-".to_string(),
+    }
+}
+
+fn parse_code_from_text(text_lines: &[String]) -> Option<char> {
+    let joined = text_lines.join(" ");
+    INFO_REGEX.captures(&joined).map_or_else(
+        || {
+            INFORMATION_REGEX
+                .captures(&joined)
+                .map_or_else(|| None, |c| c[1].chars().next())
         },
+        |c| c[1].chars().next(),
     )
 }
 
