@@ -19,3 +19,6 @@ Each airport/station checks for a VATSIM ATIS code update ever 1 to 1.5 minutes.
 
 Both codes will be displayed in the format "`ARRIVAL_CODE`/`DEPARTURE_CODE`"
 
+**Does it support "profiles" or lists of airports so that I don't need to manually enter several each time I start the program?**
+
+Yes, you can save an existing set of stations/airports using `Ctrl+S`, which will open the native system file dialog, and open a profile using `Ctrl+O`
