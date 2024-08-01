@@ -73,6 +73,7 @@ fn main() {
     tauri::Builder::default()
         .manage(Arc::new(AppState::new()))
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             fetch_metar,
             lookup_station,
