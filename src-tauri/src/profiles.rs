@@ -47,13 +47,13 @@ fn write_profile_to_file(path: &Path, profile: &Profile) -> Result<(), anyhow::E
 
 async fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
     let mut builder = app.dialog().file().add_filter("Profile JSON", &["json"]);
-    let latest_profile = get_latest_profile_path(app).await;
 
-    let starting_path = latest_profile.as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
-    let starting_filename = latest_profile.as_ref().and_then(|p| p.file_name());
+    let latest_profile = get_latest_profile_path(app).await;
+    let latest_profile_dir = latest_profile.as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
+    let latest_profile_filename = latest_profile.as_ref().and_then(|p| p.file_name());
 
     let dialog_path =
-        starting_path.map_or_else(get_or_create_profiles_path, |p| match p.try_exists() {
+        latest_profile_dir.map_or_else(get_or_create_profiles_path, |p| match p.try_exists() {
             Ok(true) => Some(p),
             _ => None,
         });
@@ -62,9 +62,9 @@ async fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
         builder = builder.set_directory(dialog_path.unwrap());
     }
 
-    if starting_filename.is_some() {
+    if latest_profile_filename.is_some() {
         builder = builder.set_file_name(
-            starting_filename
+            latest_profile_filename
                 .unwrap()
                 .to_os_string()
                 .into_string()
