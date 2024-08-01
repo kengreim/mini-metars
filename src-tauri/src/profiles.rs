@@ -45,11 +45,13 @@ fn write_profile_to_file(path: &Path, profile: &Profile) -> Result<(), anyhow::E
     Ok(())
 }
 
-async fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
+fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
     let mut builder = app.dialog().file().add_filter("Profile JSON", &["json"]);
 
-    let latest_profile = get_latest_profile_path(app).await;
-    let latest_profile_dir = latest_profile.as_ref().and_then(|p| p.parent().map(Path::to_path_buf));
+    let latest_profile = get_latest_profile_path(app);
+    let latest_profile_dir = latest_profile
+        .as_ref()
+        .and_then(|p| p.parent().map(Path::to_path_buf));
     let latest_profile_filename = latest_profile.as_ref().and_then(|p| p.file_name());
 
     let dialog_path =
@@ -75,56 +77,46 @@ async fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
     builder
 }
 
-async fn set_latest_profile_path(app: &AppHandle, path: PathBuf) {
+fn set_latest_profile_path(app: &AppHandle, path: PathBuf) {
     if let Some(state) = app.try_state::<LockedState>() {
-        let mut path_state = state.last_profile_path.lock().await;
+        let mut path_state = state.last_profile_path.lock().unwrap();
         *path_state = Some(path);
     }
 }
 
-async fn get_latest_profile_path(app: &AppHandle) -> Option<PathBuf> {
-    if let Some(state) = app.try_state::<LockedState>() {
-        let p = state.last_profile_path.lock().await;
+fn get_latest_profile_path(app: &AppHandle) -> Option<PathBuf> {
+    app.try_state::<LockedState>().and_then(|state| {
+        let p = state.last_profile_path.lock().unwrap();
         p.clone()
-    } else {
-        None
-    }
+    })
 }
 
-#[tauri::command]
-pub async fn load_profile(app: AppHandle) -> Result<Profile, String> {
-    let pick_response = profile_dialog_builder(&app)
-        .await
-        .blocking_pick_file();
-
-    if let Some(pick) = pick_response {
-        match read_profile_from_file(&pick.path) {
+#[tauri::command(async)]
+pub fn load_profile(app: AppHandle) -> Result<Profile, String> {
+    let pick_response = profile_dialog_builder(&app).blocking_pick_file();
+    pick_response.map_or_else(
+        || Err("Could not pick file".to_string()),
+        |pick| match read_profile_from_file(&pick.path) {
             Ok(profile) => {
-                set_latest_profile_path(&app, pick.path).await;
+                set_latest_profile_path(&app, pick.path);
                 Ok(profile)
-            },
-            Err(e) => Err(e.to_string())
-        }
-    } else {
-        Err("Could not pick file".to_string())
-    }
+            }
+            Err(e) => Err(e.to_string()),
+        },
+    )
 }
 
-#[tauri::command]
-pub async fn save_profile(profile: Profile, app: AppHandle) -> Result<(), String> {
-    let save_path = profile_dialog_builder(&app)
-        .await
-        .blocking_save_file();
-
-    if let Some(path) = save_path {
-        match write_profile_to_file(&path, &profile) {
+#[tauri::command(async)]
+pub fn save_profile(profile: Profile, app: AppHandle) -> Result<(), String> {
+    let save_path = profile_dialog_builder(&app).blocking_save_file();
+    save_path.map_or_else(
+        || Err("Could not select file to save".to_string()),
+        |path| match write_profile_to_file(&path, &profile) {
             Ok(()) => {
-                set_latest_profile_path(&app, path).await;
+                set_latest_profile_path(&app, path);
                 Ok(())
-            },
-            Err(e) => Err(e.to_string())
-        }
-    } else {
-        Err("Could not select file to save".to_string())
-    }
+            }
+            Err(e) => Err(e.to_string()),
+        },
+    )
 }
