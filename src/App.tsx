@@ -6,15 +6,16 @@ import { createStore } from "solid-js/store";
 import { autofocus } from "@solid-primitives/autofocus";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { logIfDev } from "./logging.ts";
-
-const [inputId, setInputId] = createSignal("");
-const [ids, setIds] = createStore<string[]>([]);
+import { clsx } from "clsx";
+import { createShortcut } from "@solid-primitives/keyboard";
+import { loadProfile, Profile, saveProfile } from "./tauri.ts";
 
 function removeIndex<T>(array: readonly T[], index: number): T[] {
   return [...array.slice(0, index), ...array.slice(index + 1)];
 }
 
 function App() {
+  // Window basics
   let containerRef: HTMLDivElement | undefined;
   let window = getCurrentWindow();
 
@@ -26,6 +27,38 @@ function App() {
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", (event) => event.preventDefault());
   }
+
+  // Main signals for IDs and input
+  const [inputId, setInputId] = createSignal("");
+  const [ids, setIds] = createStore<string[]>([]);
+
+  // Create shortcuts for profile open and save
+  createShortcut(
+    ["Control", "O"],
+    async () => {
+      try {
+        let p = await loadProfile();
+        await loadStationsFromProfile(p);
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    { preventDefault: true, requireReset: true }
+  );
+  createShortcut(
+    ["Control", "S"],
+    async () => {
+      try {
+        let p: Profile = { name: "", stations: ids };
+        await saveProfile(p);
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    { preventDefault: true, requireReset: true }
+  );
+
+  const [hideScroll, setHideScroll] = createSignal(false);
 
   async function resetWindowHeight() {
     if (containerRef !== undefined) {
@@ -40,8 +73,16 @@ function App() {
     }
   }
 
+  async function loadStationsFromProfile(p: Profile) {
+    setHideScroll(true);
+    setIds(p.stations);
+    await resetWindowHeight();
+    setHideScroll(false);
+  }
+
   async function addStation(e: SubmitEvent) {
     e.preventDefault();
+    setHideScroll(true);
     batch(() => {
       if (inputId().length >= 3 && inputId().length <= 4) {
         setIds(ids.length, inputId());
@@ -49,6 +90,7 @@ function App() {
       }
     });
     await resetWindowHeight();
+    setHideScroll(false);
   }
 
   async function removeStation(index: number) {
@@ -57,43 +99,55 @@ function App() {
   }
 
   return (
-    <div class="flex flex-col bg-black text-white" ref={containerRef}>
-      <div class="flex flex-col grow">
-        <For each={ids}>
-          {(id, i) => (
-            <div class="flex">
-              <div
-                class="flex w-4 h-5 items-center cursor-pointer"
-                onClick={async () => removeStation(i())}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  class="size-4 stroke-red-700 hover:stroke-red-500 transition-colors"
+    <div
+      class={clsx({
+        "pt-[24px] h-screen": true,
+        "overflow-auto": !hideScroll(),
+        "overflow-hidden": hideScroll(),
+      })}
+    >
+      <div class="flex flex-col bg-black text-white" ref={containerRef}>
+        <div class="flex flex-col grow">
+          <For each={ids}>
+            {(id, i) => (
+              <div class="flex">
+                <div
+                  class="flex w-4 h-5 items-center cursor-pointer"
+                  onClick={async () => removeStation(i())}
                 >
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
-                </svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    class="size-4 stroke-red-700 hover:stroke-red-500 transition-colors"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+                  </svg>
+                </div>
+                <Metar
+                  requestedId={id}
+                  resizeFn={resetWindowHeight}
+                  scrollbarHide={setHideScroll}
+                />
               </div>
-              <Metar requestedId={id} resizeFn={resetWindowHeight} />
-            </div>
-          )}
-        </For>
-        <form onSubmit={async (e) => addStation(e)}>
-          <input
-            id="stationId"
-            name="stationId"
-            type="text"
-            class="w-16 text-white font-mono bg-gray-900 mx-1 my-1 border-gray-700 border focus:outline-none focus:border-gray-500 px-1"
-            value={inputId()}
-            onInput={(e) => setInputId(e.currentTarget.value)}
-            use:autofocus
-            autofocus
-            formNoValidate
-            autocomplete="off"
-          />
-        </form>
+            )}
+          </For>
+          <form onSubmit={async (e) => addStation(e)}>
+            <input
+              id="stationId"
+              name="stationId"
+              type="text"
+              class="w-16 text-white font-mono bg-gray-900 mx-1 my-1 border-gray-700 border focus:outline-none focus:border-gray-500 px-1 rounded"
+              value={inputId()}
+              onInput={(e) => setInputId(e.currentTarget.value)}
+              use:autofocus
+              autofocus
+              formNoValidate
+              autocomplete="off"
+            />
+          </form>
+        </div>
       </div>
     </div>
   );

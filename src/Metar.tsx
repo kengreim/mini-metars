@@ -1,10 +1,11 @@
-import { Component, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { Component, createSignal, onCleanup, onMount, Setter, Show } from "solid-js";
 import { lookupStationCmd, updateAtisLetterCmd, updateMetarCmd } from "./tauri.ts";
 import { logIfDev } from "./logging.ts";
 
 interface MetarProps {
   requestedId: string;
   resizeFn: () => Promise<void>;
+  scrollbarHide: Setter<boolean>;
 }
 
 function getRandomInt(min: number, max: number) {
@@ -111,8 +112,10 @@ export const Metar: Component<MetarProps> = (props) => {
     <div
       class="flex flex-col mx-1 select-none cursor-pointer"
       onClick={async () => {
+        props.scrollbarHide(true);
         setShowFullMetar((prev) => !prev);
         await props.resizeFn();
+        props.scrollbarHide(false);
       }}
     >
       <div class="flex font-mono text-sm">
