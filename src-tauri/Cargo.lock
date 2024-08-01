@@ -1839,6 +1839,7 @@ version = "0.0.2"
 dependencies = [
  "anyhow",
  "chrono",
+ "dirs",
  "flate2",
  "regex",
  "reqwest 0.12.5",

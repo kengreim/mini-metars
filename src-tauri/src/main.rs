@@ -15,6 +15,7 @@ use vatsim_utils::live_api::Vatsim;
 use vatsim_utils::models::{Atis, V3ResponseData};
 
 mod awc;
+mod profiles;
 
 pub struct VatsimDataFetch {
     pub fetched_time: Instant,
