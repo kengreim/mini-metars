@@ -7,15 +7,15 @@ import { autofocus } from "@solid-primitives/autofocus";
 import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { logIfDev } from "./logging.ts";
 import { clsx } from "clsx";
-
-const [inputId, setInputId] = createSignal("");
-const [ids, setIds] = createStore<string[]>([]);
+import { createShortcut } from "@solid-primitives/keyboard";
+import { loadProfile, Profile, saveProfile } from "./tauri.ts";
 
 function removeIndex<T>(array: readonly T[], index: number): T[] {
   return [...array.slice(0, index), ...array.slice(index + 1)];
 }
 
 function App() {
+  // Window basics
   let containerRef: HTMLDivElement | undefined;
   let window = getCurrentWindow();
 
@@ -27,6 +27,36 @@ function App() {
   if (import.meta.env.PROD) {
     document.addEventListener("contextmenu", (event) => event.preventDefault());
   }
+
+  // Main signals for IDs and input
+  const [inputId, setInputId] = createSignal("");
+  const [ids, setIds] = createStore<string[]>([]);
+
+  // Create shortcuts for profile open and save
+  createShortcut(
+    ["Control", "O"],
+    async () => {
+      try {
+        let p = await loadProfile();
+        await loadStationsFromProfile(p);
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    { preventDefault: true, requireReset: true }
+  );
+  createShortcut(
+    ["Control", "S"],
+    async () => {
+      try {
+        let p: Profile = { name: "", stations: ids };
+        await saveProfile(p);
+      } catch (error) {
+        console.log(error);
+      }
+    },
+    { preventDefault: true, requireReset: true }
+  );
 
   const [hideScroll, setHideScroll] = createSignal(false);
 
@@ -41,6 +71,13 @@ function App() {
         new PhysicalSize(currentSize.width, (containerRef.offsetHeight + 24) * scaleFactor)
       );
     }
+  }
+
+  async function loadStationsFromProfile(p: Profile) {
+    setHideScroll(true);
+    setIds(p.stations);
+    await resetWindowHeight();
+    setHideScroll(false);
   }
 
   async function addStation(e: SubmitEvent) {

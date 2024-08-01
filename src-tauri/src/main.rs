@@ -6,6 +6,7 @@ use crate::awc::{AviationWeatherCenterApi, MetarDto, Station};
 use anyhow::anyhow;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 use tauri::State;
@@ -36,6 +37,7 @@ pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
     latest_vatsim_data: Mutex<Option<VatsimDataFetch>>,
+    last_profile_path: Mutex<Option<PathBuf>>,
 }
 
 impl AppState {
@@ -45,6 +47,7 @@ impl AppState {
             awc_client: OnceCell::const_new(),
             vatsim_client: OnceCell::const_new(),
             latest_vatsim_data: Mutex::const_new(None),
+            last_profile_path: Mutex::const_new(None),
         }
     }
 
@@ -77,7 +80,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             fetch_metar,
             lookup_station,
-            get_atis_letter
+            get_atis_letter,
+            profiles::load_profile,
+            profiles::save_profile
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
