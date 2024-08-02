@@ -201,7 +201,7 @@ fn parse_code_from_text(text_lines: &[String]) -> Option<char> {
         || {
             INFORMATION_REGEX
                 .captures(&joined)
-                .map_or_else(|| None, |c| c[1].chars().next())
+                .and_then(|c| c[1].chars().next())
         },
         |c| c[1].chars().next(),
     )

@@ -79,16 +79,13 @@ fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
 
 fn set_latest_profile_path(app: &AppHandle, path: PathBuf) {
     if let Some(state) = app.try_state::<LockedState>() {
-        let mut path_state = state.last_profile_path.lock().unwrap();
-        *path_state = Some(path);
+        *state.last_profile_path.lock().unwrap() = Some(path);
     }
 }
 
 fn get_latest_profile_path(app: &AppHandle) -> Option<PathBuf> {
-    app.try_state::<LockedState>().and_then(|state| {
-        let p = state.last_profile_path.lock().unwrap();
-        p.clone()
-    })
+    app.try_state::<LockedState>()
+        .and_then(|state| state.last_profile_path.lock().unwrap().clone())
 }
 
 #[tauri::command(async)]
