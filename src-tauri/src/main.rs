@@ -7,10 +7,10 @@ use anyhow::anyhow;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use tauri::State;
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
 use vatsim_utils::live_api::Vatsim;
 use vatsim_utils::models::{Atis, V3ResponseData};
@@ -37,7 +37,7 @@ pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
     latest_vatsim_data: Mutex<Option<VatsimDataFetch>>,
-    last_profile_path: std::sync::Mutex<Option<PathBuf>>,
+    last_profile_path: Mutex<Option<PathBuf>>,
 }
 
 impl AppState {
@@ -46,8 +46,8 @@ impl AppState {
         Self {
             awc_client: OnceCell::const_new(),
             vatsim_client: OnceCell::const_new(),
-            latest_vatsim_data: Mutex::const_new(None),
-            last_profile_path: std::sync::Mutex::new(None),
+            latest_vatsim_data: Mutex::new(None),
+            last_profile_path: Mutex::new(None),
         }
     }
 
@@ -128,13 +128,12 @@ async fn lookup_station(id: &str, state: State<'_, LockedState>) -> Result<Stati
 
 #[tauri::command]
 async fn get_atis_letter(icao_id: &str, state: State<'_, LockedState>) -> Result<String, String> {
-    let mut data = state.latest_vatsim_data.lock().await;
-
-    if (*data).as_ref().map_or_else(|| true, datafeed_is_stale) {
-        *data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
+    if datafeed_is_stale(&state) {
+        let new_data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
+        *state.latest_vatsim_data.lock().unwrap() = new_data;
     }
 
-    if let Some(fetch) = &*data {
+    if let Some(fetch) = &*state.latest_vatsim_data.lock().unwrap() {
         fetch.data.as_ref().map_or_else(
             |_| Err("Could not retrieve datafeed".to_string()),
             |datafeed| {
@@ -207,8 +206,16 @@ fn parse_code_from_text(text_lines: &[String]) -> Option<char> {
     )
 }
 
-fn datafeed_is_stale(fetch: &VatsimDataFetch) -> bool {
-    fetch.fetched_time.elapsed() > Duration::from_secs(60)
+fn datafeed_is_stale(state: &State<'_, LockedState>) -> bool {
+    state
+        .latest_vatsim_data
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map_or_else(
+            || true,
+            |fetch| fetch.fetched_time.elapsed() > Duration::from_secs(60),
+        )
 }
 
 async fn fetch_vatsim_data(
