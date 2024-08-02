@@ -28,8 +28,8 @@ export const Metar: Component<MetarProps> = (props) => {
   const [atisLetter, setAtisLetter] = createSignal("-");
 
   // Update handle
-  const [metarTimerHandle, setMetarTimerHandle] = createSignal(-1);
-  const [letterTimerHandle, setLetterTimerHandle] = createSignal(-1);
+  const [metarTimerHandle, setMetarTimerHandle] = createSignal<number | undefined>(undefined);
+  const [letterTimerHandle, setLetterTimerHandle] = createSignal<number | undefined>(undefined);
 
   const fetchAndUpdateStation = async () => {
     try {
@@ -99,11 +99,11 @@ export const Metar: Component<MetarProps> = (props) => {
   });
 
   onCleanup(() => {
-    if (metarTimerHandle() != -1) {
+    if (metarTimerHandle() !== undefined) {
       clearInterval(metarTimerHandle());
     }
 
-    if (letterTimerHandle() != -1) {
+    if (letterTimerHandle() !== undefined) {
       clearInterval(letterTimerHandle());
     }
   });
