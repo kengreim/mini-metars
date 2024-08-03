@@ -1,7 +1,5 @@
-use crate::LockedState;
+use crate::{utils, LockedState};
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, File};
-use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
@@ -24,25 +22,15 @@ fn profiles_path() -> Option<PathBuf> {
 }
 
 fn get_or_create_profiles_path() -> Option<PathBuf> {
-    let result = profiles_path().map(|p| match p.try_exists() {
-        Ok(true) => Some(p),
-        Ok(false) => create_dir_all(&p).map_or(None, |()| Some(p)),
-        _ => None,
-    });
-
-    result.unwrap_or_default()
+    profiles_path().and_then(|p| utils::get_or_create_path(&p))
 }
 
 fn read_profile_from_file(path: &Path) -> Result<Profile, anyhow::Error> {
-    let file = File::open(path)?;
-    let de = serde_json::from_reader(BufReader::new(file))?;
-    Ok(de)
+    utils::deserialize_from_file(path)
 }
 
 fn write_profile_to_file(path: &Path, profile: &Profile) -> Result<(), anyhow::Error> {
-    let file = File::create(path)?;
-    serde_json::to_writer_pretty(BufWriter::new(file), profile)?;
-    Ok(())
+    utils::serialize_to_file(path, profile)
 }
 
 fn profile_dialog_builder(app: &AppHandle) -> FileDialogBuilder<Wry> {
