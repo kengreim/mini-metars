@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub show_vatsim_atis: bool,
@@ -38,10 +38,10 @@ fn read_settings_or_default() -> Settings {
     })
 }
 
-fn write_settings_to_file(settings: &Settings) -> Result<(), anyhow::Error> {
+fn write_settings_to_file(settings: Settings) -> Result<(), anyhow::Error> {
     settings_path().map_or_else(
         || Err(anyhow!("Could not construct path to settings.json")),
-        |p| utils::serialize_to_file(&p, settings),
+        |p| utils::serialize_to_file(&p, &settings),
     )
 }
 
@@ -52,5 +52,5 @@ fn load_settings() -> Settings {
 
 #[tauri::command(async)]
 fn save_settings(settings: Settings) -> Result<(), String> {
-    write_settings_to_file(&settings).map_err(|e| e.to_string())
+    write_settings_to_file(settings).map_err(|e| e.to_string())
 }

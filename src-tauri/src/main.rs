@@ -19,6 +19,7 @@ mod awc;
 mod profiles;
 mod settings;
 mod utils;
+mod weather_cache;
 
 pub struct VatsimDataFetch {
     pub fetched_time: Instant,
