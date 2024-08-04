@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub show_vatsim_atis: bool,
     pub show_altimeter: bool,
@@ -12,8 +13,8 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new() -> Self {
-        Settings {
+    pub const fn new() -> Self {
+        Self {
             show_vatsim_atis: true,
             show_altimeter: true,
             show_wind: true,
@@ -32,10 +33,9 @@ fn settings_path() -> Option<PathBuf> {
 }
 
 fn read_settings_or_default() -> Settings {
-    settings_path().map_or_else(
-        || Settings::default(),
-        |p| deserialize_from_file(&p).map_or_else(|_| Settings::default(), |de| de),
-    )
+    settings_path().map_or_else(Settings::default, |p| {
+        deserialize_from_file(&p).unwrap_or_else(|_| Settings::default())
+    })
 }
 
 fn write_settings_to_file(settings: &Settings) -> Result<(), anyhow::Error> {
@@ -45,6 +45,12 @@ fn write_settings_to_file(settings: &Settings) -> Result<(), anyhow::Error> {
     )
 }
 
-// TODO -- get settings command for frontend
+#[tauri::command(async)]
+fn load_settings() -> Settings {
+    read_settings_or_default()
+}
 
-// TODO -- save settings command for frontend
+#[tauri::command(async)]
+fn save_settings(settings: Settings) -> Result<(), String> {
+    write_settings_to_file(&settings).map_err(|e| e.to_string())
+}

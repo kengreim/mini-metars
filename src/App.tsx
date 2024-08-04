@@ -8,7 +8,7 @@ import { getCurrentWindow, PhysicalSize } from "@tauri-apps/api/window";
 import { logIfDev } from "./logging.ts";
 import { clsx } from "clsx";
 import { createShortcut } from "@solid-primitives/keyboard";
-import { loadProfile, Profile, saveProfile } from "./tauri.ts";
+import { loadProfileCmd, Profile, saveProfileCmd } from "./tauri.ts";
 
 function removeIndex<T>(array: readonly T[], index: number): T[] {
   return [...array.slice(0, index), ...array.slice(index + 1)];
@@ -37,7 +37,7 @@ function App() {
     ["Control", "O"],
     async () => {
       try {
-        let p = await loadProfile();
+        let p = await loadProfileCmd();
         await loadStationsFromProfile(p);
       } catch (error) {
         console.log(error);
@@ -50,7 +50,7 @@ function App() {
     async () => {
       try {
         let p: Profile = { name: "", stations: ids };
-        await saveProfile(p);
+        await saveProfileCmd(p);
       } catch (error) {
         console.log(error);
       }
