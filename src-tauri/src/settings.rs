@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use crate::profiles::{load_profile_from_path, Profile};
 use crate::state::AppState;
 use crate::utils;

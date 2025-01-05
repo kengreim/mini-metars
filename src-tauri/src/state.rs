@@ -1,31 +1,17 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
 use std::sync::Mutex;
-use std::time::Instant;
 use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
 use vatsim_utils::live_api::Vatsim;
 use vatsim_utils::models::V3ResponseData;
 
-pub struct VatsimDataFetch {
-    pub fetched_time: Instant,
-    pub data: Result<V3ResponseData, anyhow::Error>,
-}
-
-impl VatsimDataFetch {
-    #[must_use]
-    pub fn new(data: Result<V3ResponseData, anyhow::Error>) -> Self {
-        Self {
-            fetched_time: Instant::now(),
-            data,
-        }
-    }
-}
-
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
-    pub latest_vatsim_data: Mutex<Option<VatsimDataFetch>>,
+    pub latest_vatsim_data: Mutex<Option<V3ResponseData>>,
     pub settings: Mutex<Option<Settings>>,
 }
 

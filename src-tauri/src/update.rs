@@ -1,10 +1,12 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use anyhow::anyhow;
 use log::trace;
 use regex::Regex;
 use semver::Version;
 use std::sync::LazyLock;
 use tauri::{AppHandle, WebviewWindowBuilder};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 pub async fn check_for_updates(app: &AppHandle) -> Result<(), anyhow::Error> {
     static TAG_VERSION_REGEX: LazyLock<Regex> =
@@ -24,13 +26,12 @@ pub async fn check_for_updates(app: &AppHandle) -> Result<(), anyhow::Error> {
             trace!("Found latest version: {latest_ver}");
             if latest_ver > app.package_info().version {
                 trace!("Latest version is newer than current version");
-                let message = format!("A new version ({}) was found. Do you want to open a window to download the installer?", latest_ver.to_string());
+                let message = format!("A new version ({latest_ver}) was found. Do you want to open a window to download the installer?");
                 let handle = app.clone();
                 app.dialog()
                     .message(message)
                     .title("New version")
-                    .ok_button_label("Yes")
-                    .cancel_button_label("No")
+                    .buttons(MessageDialogButtons::YesNo)
                     .show(move |response| {
                         if response {
                             // Open new window

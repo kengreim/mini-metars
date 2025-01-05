@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use crate::profiles::{default_scale, ProfileWindowState};
 use crate::settings::Settings;
 use crate::MAIN_WINDOW_LABEL;

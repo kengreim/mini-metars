@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use anyhow::{anyhow, bail};
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};

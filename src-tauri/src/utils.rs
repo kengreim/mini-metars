@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fs::{create_dir_all, File};

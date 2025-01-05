@@ -7,18 +7,17 @@ use crate::profiles::read_profile_from_file;
 use crate::settings::{
     get_appstate_settings, get_latest_profile_path, read_settings_or_default, set_appstate_settings,
 };
-use crate::state::{AppState, VatsimDataFetch};
+use crate::state::AppState;
 use crate::update::check_for_updates;
-use anyhow::anyhow;
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use tauri::plugin::TauriPlugin;
-use tauri::{Runtime, State, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, Runtime, State, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
-use vatsim_utils::models::{Atis, V3ResponseData};
+use vatsim_utils::models::Atis;
 
 mod awc;
 mod profiles;
@@ -31,14 +30,17 @@ mod window;
 const MAIN_WINDOW_LABEL: &str = "main";
 
 fn build_logger<R: Runtime>() -> TauriPlugin<R> {
-    let builder =
-        tauri_plugin_log::Builder::new()
-            .clear_targets()
-            .level(if cfg!(debug_assertions) {
+    let builder = tauri_plugin_log::Builder::new()
+        .clear_targets()
+        .level(log::LevelFilter::Info)
+        .level_for(
+            "mini_metars",
+            if cfg!(debug_assertions) {
                 log::LevelFilter::Trace
             } else {
                 log::LevelFilter::Debug
-            });
+            },
+        );
 
     #[cfg(not(target_os = "windows"))]
     let builder = builder.target(Target::new(TargetKind::LogDir {
@@ -70,7 +72,6 @@ fn main() {
             fetch_metar,
             lookup_station,
             get_atis,
-            initialize_datafeed,
             profiles::load_profile,
             profiles::save_current_profile,
             profiles::save_profile_as,
@@ -111,6 +112,8 @@ fn main() {
                     Err(e) => info!("Error while checking for updates: {e:?}"),
                 }
             });
+
+            tauri::async_runtime::spawn(vatsim_datafeed_loop(app.handle().clone()));
 
             if let Some(profile_path) = get_latest_profile_path(app.handle()) {
                 debug!("Initialization - found latest profile path: {profile_path:?}");
@@ -161,14 +164,6 @@ struct FetchMetarResponse {
 struct Altimeter {
     in_hg: f64,
     hpa: f64,
-}
-
-#[tauri::command]
-async fn initialize_datafeed(state: State<'_, Arc<AppState>>) -> Result<(), String> {
-    debug!("Initializing VATSIM datafeed");
-    let new_data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
-    *state.latest_vatsim_data.lock().unwrap() = new_data;
-    Ok(())
 }
 
 #[tauri::command]
@@ -235,52 +230,47 @@ async fn get_atis(
     icao_id: &str,
     state: State<'_, Arc<AppState>>,
 ) -> Result<FetchAtisResponse, String> {
-    if datafeed_is_stale(&state) {
-        debug!("Datafeed is stale, fetching new data");
-        let new_data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
-        *state.latest_vatsim_data.lock().unwrap() = new_data;
-    }
+    // if datafeed_is_stale(&state) {
+    //     debug!("Datafeed is stale, fetching new data");
+    //     let new_data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
+    //     *state.latest_vatsim_data.lock().unwrap() = new_data;
+    // }
 
     if let Some(fetch) = &*state.latest_vatsim_data.lock().unwrap() {
-        fetch.data.as_ref().map_or_else(
-            |_| Err("Could not retrieve datafeed".to_string()),
-            |datafeed| {
-                let found_atis: Vec<&Atis> = datafeed
-                    .atis
-                    .iter()
-                    .filter(|a| a.callsign.starts_with(icao_id))
-                    .collect();
+        let found_atis: Vec<&Atis> = fetch
+            .atis
+            .iter()
+            .filter(|a| a.callsign.starts_with(icao_id))
+            .collect();
 
-                trace!(
-                    "Found {} atis for {} with callsign(s): {:?}",
-                    found_atis.len(),
-                    icao_id,
-                    found_atis
-                        .iter()
-                        .map(|a| &a.callsign)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                );
+        trace!(
+            "Found {} atis for {} with callsign(s): {:?}",
+            found_atis.len(),
+            icao_id,
+            found_atis
+                .iter()
+                .map(|a| &a.callsign)
+                .cloned()
+                .collect::<Vec<_>>()
+        );
 
-                let letter_str: String = match found_atis.len() {
-                    0 => "-".to_string(),
-                    1 => parse_atis_code(found_atis[0]),
-                    _ => format!(
-                        "{}/{}",
-                        filter_callsign_and_parse(&found_atis, "_A_"),
-                        filter_callsign_and_parse(&found_atis, "_D_")
-                    ),
-                };
+        let letter_str: String = match found_atis.len() {
+            0 => "-".to_string(),
+            1 => parse_atis_code(found_atis[0]),
+            _ => format!(
+                "{}/{}",
+                filter_callsign_and_parse(&found_atis, "_A_"),
+                filter_callsign_and_parse(&found_atis, "_D_")
+            ),
+        };
 
-                Ok(FetchAtisResponse {
-                    letter: letter_str,
-                    texts: found_atis
-                        .iter()
-                        .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
-                        .collect(),
-                })
-            },
-        )
+        Ok(FetchAtisResponse {
+            letter: letter_str,
+            texts: found_atis
+                .iter()
+                .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
+                .collect(),
+        })
     } else {
         const E: &str = "Could not retrieve datafeed";
         warn!("Get Atis Command error: {E}");
@@ -365,34 +355,54 @@ fn nato_to_char(str: &str) -> Option<char> {
         "UNIFORM" => Some('U'),
         "VICTOR" => Some('V'),
         "WHISKEY" => Some('W'),
-        "XRAY" => Some('X'),
-        "X-RAY" => Some('X'),
+        "XRAY" | "X-RAY" => Some('X'),
         "YANKEE" => Some('Y'),
         "ZULU" => Some('Z'),
         _ => None,
     }
 }
 
-fn datafeed_is_stale(state: &State<'_, Arc<AppState>>) -> bool {
-    state
-        .latest_vatsim_data
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map_or_else(
-            || true,
-            |fetch| fetch.fetched_time.elapsed() > Duration::from_secs(30),
-        )
-}
+async fn vatsim_datafeed_loop(app_handle: AppHandle) {
+    if let Some(state) = app_handle.try_state::<Arc<AppState>>() {
+        let Ok(client) = state.get_vatsim_client().await else {
+            const E: &str = "VATSIM API client not initialized";
+            error!("Error fetching VATSIM data: {E}");
+            return;
+        };
 
-async fn fetch_vatsim_data(
-    state: &State<'_, Arc<AppState>>,
-) -> Result<V3ResponseData, anyhow::Error> {
-    if let Ok(client) = state.get_vatsim_client().await {
-        client.get_v3_data().await.map_err(Into::into)
-    } else {
-        const E: &str = "VATSIM API client not initialized";
-        error!("Error fetching VATSIM data: {E}");
-        Err(anyhow!(E))
-    }
+        debug!("Starting VATSIM datafeed update loop");
+
+        loop {
+            let mut sleep_duration = Duration::from_secs(15);
+            match client.get_v3_data().await {
+                Ok(data) => {
+                    let is_duplicate = state
+                        .latest_vatsim_data
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .map_or_else(
+                            || false,
+                            |old_data| old_data.general.update == data.general.update,
+                        );
+
+                    if is_duplicate {
+                        debug!(
+                            "Fetched duplicate VATSIM datafeed: {}",
+                            &data.general.update
+                        );
+                        sleep_duration = Duration::from_secs(1);
+                    } else {
+                        debug!("Fetched new VATSIM datafeed: {}", &data.general.update);
+                        *state.latest_vatsim_data.lock().unwrap() = Some(data);
+                    }
+                }
+                Err(e) => {
+                    error!("Error fetching VATSIM data: {e}");
+                }
+            }
+
+            tokio::time::sleep(sleep_duration).await;
+        }
+    };
 }

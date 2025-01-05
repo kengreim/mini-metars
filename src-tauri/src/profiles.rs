@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+
 use crate::settings::{
     get_appstate_settings, get_latest_profile_path, read_settings_or_default,
     set_latest_profile_path,
@@ -10,7 +12,7 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, Wry};
-use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
+use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -117,7 +119,10 @@ pub fn load_profile(app: AppHandle) -> Result<Profile, String> {
     let pick_response = profile_dialog_builder(&app).blocking_pick_file();
     let ret = pick_response.map_or_else(
         || Err("Could not pick file".to_string()),
-        |pick| load_profile_from_path(&app, &pick.path),
+        |path| match path {
+            FilePath::Url(_) => Err("Cannot load from URL".to_string()),
+            FilePath::Path(path) => load_profile_from_path(&app, &path),
+        },
     );
 
     set_always_on_top_settings_checked(window.as_ref(), &settings, true)?;
@@ -164,7 +169,10 @@ pub fn save_profile_as(mut profile: Profile, app: AppHandle) -> Result<(), Strin
         .blocking_save_file()
         .map_or_else(
             || Err("Dialog closed without selecting save path".to_string()),
-            |path| save_profile(&profile, &path, &app),
+            |path| match path {
+                FilePath::Url(_) => Err("Cannot save to URL".to_string()),
+                FilePath::Path(path) => save_profile(&profile, &path, &app),
+            },
         );
 
     set_always_on_top_settings_checked(window.as_ref(), &settings, true)?;
