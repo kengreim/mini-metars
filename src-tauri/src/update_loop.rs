@@ -1,4 +1,7 @@
 use crate::state::AppState;
+use crate::vatis;
+use cached::Cached;
+use cached::TimedCache;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
 use std::sync::Arc;
@@ -59,11 +62,14 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
     const PING_INTERVAL_SECONDS: u64 = 30;
     const WS_TRY_CONNECT_INTERVAL_SECONDS: u64 = 30;
     const WS_TRY_RECONNECT_INTERVAL_SECONDS: u64 = 1;
+    const CACHE_TTL_SECONDS: u64 = 60 * 3;
 
     let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
         error!("Could not retrieve state to initialize vATIS weboscket update loop");
         return;
     };
+
+    *state.vatis_data.lock().unwrap() = Some(TimedCache::with_lifespan(CACHE_TTL_SECONDS));
 
     debug!("Starting vATIS websocket update loop");
     loop {
@@ -79,7 +85,24 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
                     msg = read.next() => {
                         match msg {
                             Some(Ok(Message::Text(msg))) => {
-                                todo!();
+                                match serde_json::from_str::<vatis::AtisUpdateMessage>(msg.as_str()) {
+                                    Ok(update) => {
+                                        debug!("Received vATIS update message for station {:?} with letter {:?}", update.value.station, update.value.atis_letter);
+                                        if let Some(station) = update.value.station.as_ref() {
+                                            match *state.vatis_data.lock().unwrap() {
+                                                Some(ref mut map) => {
+                                                    map.cache_set(station.to_string(), update);
+                                                }
+                                                _ => {
+                                                    warn!("vATIS update hashmap not initialized")
+                                                }
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+                                        warn!("Error deserializing vATIS update message: {e}")
+                                    }
+                                }
                             },
                             Some(Ok(Message::Ping(bytes))) => {
                                 debug!("Received ping message from vATIS websocket");
@@ -130,43 +153,3 @@ fn debug_message(msg: &Message) {
     };
     debug!("Received {str} message from vATIS websocket");
 }
-
-//
-// async fn handle_message(
-//     msg: Option<Result<Message, tungstenite::error::Error>>,
-//     write: &mut (impl SinkExt<Message, Error = tungstenite::error::Error> + Unpin),
-// ) {
-//     match msg {
-//         Some(msg) => match msg {
-//             Ok(Message::Text(msg)) => {
-//                 todo!();
-//             }
-//             Ok(Message::Ping(bytes)) => {
-//                 debug!("Received ping message from vATIS websocket");
-//                 if let Err(e) = write.send(Message::Pong(bytes)).await {
-//                     warn!("Error sending pong message to vATIS websocket: {e}");
-//                 } else {
-//                     debug!("Responded with pong message to vATIS websocket");
-//                 }
-//             }
-//             Ok(Message::Close(_)) => {
-//                 debug!("Received close message from vATIS websocket");
-//             }
-//             Ok(Message::Pong(_)) => {
-//                 debug!("Received pong message from vATIS websocket");
-//             }
-//             Ok(Message::Binary(_)) => {
-//                 debug!("Received binary message from vATIS websocket");
-//             }
-//             Ok(Message::Frame(_)) => {
-//                 debug!("Received frame message from vATIS websocket");
-//             }
-//             Err(e) => {
-//                 warn!("Error receiving message from vATIS websocket: {e}")
-//             }
-//         },
-//         None => {
-//             debug!("vATIS websocket connection closed. Trying to reconnect")
-//         }
-//     }
-// }

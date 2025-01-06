@@ -31,6 +31,7 @@ octocrab = "0.42.1"
 semver = "1.0.24"
 tokio-tungstenite = "0.26.1"
 futures-util = "0.3.31"
+cached = "0.54.0"
 
 # Optimize for smaller binary size
 [profile.release]

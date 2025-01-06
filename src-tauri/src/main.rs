@@ -9,7 +9,7 @@ use crate::settings::{
     get_appstate_settings, get_latest_profile_path, read_settings_or_default, set_appstate_settings,
 };
 use crate::state::AppState;
-use crate::update_loop::vatsim_datafeed_loop;
+use crate::update_loop::{vatis_websocket_loop, vatsim_datafeed_loop};
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -26,6 +26,7 @@ mod settings;
 mod state;
 mod update_loop;
 mod utils;
+mod vatis;
 mod window;
 
 const MAIN_WINDOW_LABEL: &str = "main";
@@ -120,7 +121,9 @@ fn main() {
                 }
             });
 
+            // Create background tasks for VATSIM datafeed and vATIS websocket
             tauri::async_runtime::spawn(vatsim_datafeed_loop(app.handle().clone()));
+            tauri::async_runtime::spawn(vatis_websocket_loop(app.handle().clone()));
 
             if let Some(profile_path) = get_latest_profile_path(app.handle()) {
                 debug!("Initialization - found latest profile path: {profile_path:?}");

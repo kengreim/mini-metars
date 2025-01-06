@@ -2,6 +2,8 @@
 
 use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
+use crate::vatis;
+use cached::TimedCache;
 use std::sync::Mutex;
 use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
@@ -12,6 +14,7 @@ pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
     pub latest_vatsim_data: Mutex<Option<V3ResponseData>>,
+    pub vatis_data: Mutex<Option<TimedCache<String, vatis::AtisUpdateMessage>>>,
     pub settings: Mutex<Option<Settings>>,
 }
 
@@ -22,6 +25,7 @@ impl AppState {
             awc_client: OnceCell::const_new(),
             vatsim_client: OnceCell::const_new(),
             latest_vatsim_data: Mutex::new(None),
+            vatis_data: Mutex::new(None),
             settings: Mutex::new(None),
         }
     }
