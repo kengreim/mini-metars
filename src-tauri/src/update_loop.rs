@@ -1,6 +1,7 @@
 use crate::state::{AppState, ExpiringEntry};
 use crate::vatis;
 use crate::vatis::AtisUpdateRequest;
+use crate::vatis::NetworkConnectionStatus::{Connected, Observer};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
 use std::collections::HashMap;
@@ -88,14 +89,23 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
                                 match serde_json::from_str::<vatis::AtisUpdateMessage>(msg.as_str()) {
                                     Ok(update) => {
                                         debug!("Received vATIS update message for station {:?} with letter {:?}", update.value.station, update.value.atis_letter);
-                                        if let (Some(station), Some(atis_type)) = (update.value.station.as_ref(), update.value.atis_type.as_ref()) {
-                                            match *state.vatis_data.lock().unwrap() {
-                                                Some(ref mut map) => {
-                                                    map.insert((station.to_string(), *atis_type), ExpiringEntry::new_with_duration(update, Duration::from_secs(CACHE_TTL_SECONDS)));
+                                        match (update.value.network_connection_status.as_ref(), update.value.station.as_ref(), update.value.atis_type.as_ref()) {
+                                            (Some(Connected), Some(station), Some(atis_type)) | (Some(Observer), Some(station), Some(atis_type)) => {
+                                                 match *state.vatis_data.lock().unwrap() {
+                                                    Some(ref mut map) => {
+                                                        map.insert((station.to_string(), *atis_type), ExpiringEntry::new_with_duration(update.clone(), Duration::from_secs(CACHE_TTL_SECONDS)));
+                                                        debug!("Caching vATIS info for station {station}: {:?}", update)
+                                                    }
+                                                    _ => {
+                                                        warn!("vATIS update hashmap not initialized");
+                                                    }
                                                 }
-                                                _ => {
-                                                    warn!("vATIS update hashmap not initialized");
-                                                }
+                                            },
+                                            (Some(Connected), _, _) | (Some(Observer), _, _)=> {
+                                                debug!("vATIS update message missing either station or letter");
+                                            },
+                                            _ => {
+                                                debug!("Disregarding vATIS message, station not connected");
                                             }
                                         }
                                     },
