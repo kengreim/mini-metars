@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AtisUpdateMessage {
@@ -36,4 +37,34 @@ pub struct AtisUpdateValue {
     pub pressure_value: Option<f64>,
     pub is_new_atis: Option<bool>,
     pub text_atis: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AtisUpdateRequest {
+    #[serde(rename = "type")]
+    msg_type: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<AtisUpdateStation>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AtisUpdateStation {
+    pub station: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atis_type: Option<AtisType>,
+}
+
+impl AtisUpdateRequest {
+    pub fn new_all() -> Self {
+        Self {
+            msg_type: "getAtis",
+            value: None,
+        }
+    }
+}
+
+impl Into<Message> for AtisUpdateRequest {
+    fn into(self) -> Message {
+        Message::Text(serde_json::to_string(&self).unwrap().into())
+    }
 }

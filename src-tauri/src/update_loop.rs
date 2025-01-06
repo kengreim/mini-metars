@@ -1,5 +1,6 @@
 use crate::state::{AppState, ExpiringEntry};
 use crate::vatis;
+use crate::vatis::AtisUpdateRequest;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
 use std::collections::HashMap;
@@ -7,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::{Bytes, Message};
+use tokio_tungstenite::tungstenite::Message;
 
 pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
     let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
@@ -125,10 +126,10 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
                         }
                     }
                     _ = interval.tick() => {
-                        if let Err(e) = write.send(Message::Ping(Bytes::default())).await {
-                            warn!("Error sending ping message to vATIS websocket: {e}");
+                        if let Err(e) = write.send(AtisUpdateRequest::new_all().into()).await {
+                            warn!("Error sending getAtis message to vATIS websocket: {e}");
                         } else {
-                            debug!("Sent ping message to vATIS websocket");
+                            debug!("Sent getAtis message to vATIS websocket");
                         }
                     }
                 }

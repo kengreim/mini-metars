@@ -287,7 +287,7 @@ async fn get_atis(
             }
             _ => {
                 trace!(
-                    "Found datafeed ATIS letter {} for {} with callsign(s): {:?}",
+                    "Found num = {} datafeed ATIS for {} with callsign(s): {:?}",
                     found_atis.len(),
                     icao_id,
                     found_atis
