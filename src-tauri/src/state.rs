@@ -3,18 +3,40 @@
 use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
 use crate::vatis;
-use cached::TimedCache;
+use crate::vatis::{AtisType, AtisUpdateValue};
+use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
 use vatsim_utils::live_api::Vatsim;
 use vatsim_utils::models::V3ResponseData;
 
+pub struct ExpiringEntry<T> {
+    pub expiry: Instant,
+    pub value: T,
+}
+
+impl<T> ExpiringEntry<T> {
+    pub fn new_with_duration(value: T, duration: Duration) -> Self {
+        Self {
+            expiry: Instant::now() + duration,
+            value,
+        }
+    }
+
+    pub fn is_expired(&self) -> bool {
+        Instant::now() > self.expiry
+    }
+}
+
+pub type VatisCache = HashMap<(String, vatis::AtisType), ExpiringEntry<vatis::AtisUpdateMessage>>;
+
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
     pub latest_vatsim_data: Mutex<Option<V3ResponseData>>,
-    pub vatis_data: Mutex<Option<TimedCache<String, vatis::AtisUpdateMessage>>>,
+    pub vatis_data: Mutex<Option<VatisCache>>,
     pub settings: Mutex<Option<Settings>>,
 }
 
@@ -47,4 +69,20 @@ impl Default for AppState {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn get_cached_vatis_update(
+    key: (String, AtisType),
+    map: &VatisCache,
+) -> Option<&AtisUpdateValue> {
+    map.get(&key).map_or_else(
+        || None,
+        |entry| {
+            if entry.is_expired() {
+                None
+            } else {
+                Some(&entry.value.value)
+            }
+        },
+    )
 }

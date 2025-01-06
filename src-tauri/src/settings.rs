@@ -25,6 +25,8 @@ pub struct Settings {
     always_on_top: bool,
     #[serde(default = "true_bool")]
     auto_resize: bool,
+    #[serde(default = "true_bool")]
+    use_vatis_websocket: bool,
 }
 
 impl Settings {
@@ -34,11 +36,16 @@ impl Settings {
             most_recent_profile: None,
             always_on_top: true,
             auto_resize: true,
+            use_vatis_websocket: true,
         }
     }
 
     pub const fn always_on_top(&self) -> bool {
         self.always_on_top
+    }
+
+    pub const fn use_vatis_websocket(&self) -> bool {
+        self.use_vatis_websocket
     }
 }
 

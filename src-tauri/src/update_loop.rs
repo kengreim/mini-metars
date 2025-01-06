@@ -1,9 +1,8 @@
-use crate::state::AppState;
+use crate::state::{AppState, ExpiringEntry};
 use crate::vatis;
-use cached::Cached;
-use cached::TimedCache;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
@@ -69,7 +68,7 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
         return;
     };
 
-    *state.vatis_data.lock().unwrap() = Some(TimedCache::with_lifespan(CACHE_TTL_SECONDS));
+    *state.vatis_data.lock().unwrap() = Some(HashMap::new());
 
     debug!("Starting vATIS websocket update loop");
     loop {
@@ -88,19 +87,19 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
                                 match serde_json::from_str::<vatis::AtisUpdateMessage>(msg.as_str()) {
                                     Ok(update) => {
                                         debug!("Received vATIS update message for station {:?} with letter {:?}", update.value.station, update.value.atis_letter);
-                                        if let Some(station) = update.value.station.as_ref() {
+                                        if let (Some(station), Some(atis_type)) = (update.value.station.as_ref(), update.value.atis_type.as_ref()) {
                                             match *state.vatis_data.lock().unwrap() {
                                                 Some(ref mut map) => {
-                                                    map.cache_set(station.to_string(), update);
+                                                    map.insert((station.to_string(), *atis_type), ExpiringEntry::new_with_duration(update, Duration::from_secs(CACHE_TTL_SECONDS)));
                                                 }
                                                 _ => {
-                                                    warn!("vATIS update hashmap not initialized")
+                                                    warn!("vATIS update hashmap not initialized");
                                                 }
                                             }
                                         }
                                     },
                                     Err(e) => {
-                                        warn!("Error deserializing vATIS update message: {e}")
+                                        warn!("Error deserializing vATIS update message: {e}");
                                     }
                                 }
                             },
