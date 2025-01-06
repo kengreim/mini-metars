@@ -29,6 +29,8 @@ tauri-plugin-log = "2.2.0"
 log = "0.4.22"
 octocrab = "0.42.1"
 semver = "1.0.24"
+tokio-tungstenite = "0.26.1"
+futures-util = "0.3.31"
 
 # Optimize for smaller binary size
 [profile.release]
