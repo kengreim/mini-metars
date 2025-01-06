@@ -2,31 +2,29 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crate::app_update::check_for_updates;
 use crate::awc::{MetarDto, Station};
 use crate::profiles::read_profile_from_file;
 use crate::settings::{
     get_appstate_settings, get_latest_profile_path, read_settings_or_default, set_appstate_settings,
 };
 use crate::state::AppState;
-use crate::update::check_for_updates;
-use futures_util::{SinkExt, StreamExt};
+use crate::update_loop::vatsim_datafeed_loop;
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, LazyLock, Mutex};
-use std::time::Duration;
+use std::sync::{Arc, LazyLock};
 use tauri::plugin::TauriPlugin;
-use tauri::{AppHandle, Manager, Runtime, State, WebviewWindowBuilder};
+use tauri::{Runtime, State, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::{Bytes, Message};
 use vatsim_utils::models::Atis;
 
+mod app_update;
 mod awc;
 mod profiles;
 mod settings;
 mod state;
-mod update;
+mod update_loop;
 mod utils;
 mod window;
 
@@ -239,12 +237,6 @@ async fn get_atis(
     icao_id: &str,
     state: State<'_, Arc<AppState>>,
 ) -> Result<FetchAtisResponse, String> {
-    // if datafeed_is_stale(&state) {
-    //     debug!("Datafeed is stale, fetching new data");
-    //     let new_data = Some(VatsimDataFetch::new(fetch_vatsim_data(&state).await));
-    //     *state.latest_vatsim_data.lock().unwrap() = new_data;
-    // }
-
     if let Some(fetch) = &*state.latest_vatsim_data.lock().unwrap() {
         let found_atis: Vec<&Atis> = fetch
             .atis
@@ -369,125 +361,4 @@ fn nato_to_char(str: &str) -> Option<char> {
         "ZULU" => Some('Z'),
         _ => None,
     }
-}
-
-async fn vatsim_datafeed_loop(app_handle: AppHandle) {
-    let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
-        error!("Could not retrieve state to initialize VATSIM datafeed update loop");
-        return;
-    };
-
-    let Ok(client) = state.get_vatsim_client().await else {
-        const E: &str = "VATSIM API client not initialized";
-        error!("Error fetching VATSIM data: {E}");
-        return;
-    };
-
-    debug!("Starting VATSIM datafeed update loop");
-    loop {
-        let mut sleep_duration = Duration::from_secs(15);
-        match client.get_v3_data().await {
-            Ok(data) => {
-                let is_duplicate = state
-                    .latest_vatsim_data
-                    .lock()
-                    .unwrap()
-                    .as_ref()
-                    .map_or_else(
-                        || false,
-                        |old_data| old_data.general.update == data.general.update,
-                    );
-
-                if is_duplicate {
-                    debug!(
-                        "Fetched duplicate VATSIM datafeed: {}",
-                        &data.general.update
-                    );
-                    sleep_duration = Duration::from_secs(1);
-                } else {
-                    debug!("Fetched new VATSIM datafeed: {}", &data.general.update);
-                    *state.latest_vatsim_data.lock().unwrap() = Some(data);
-                }
-            }
-            Err(e) => {
-                error!("Error fetching VATSIM data: {e}");
-            }
-        }
-
-        tokio::time::sleep(sleep_duration).await;
-    }
-}
-
-async fn vatis_update_loop(app_handle: AppHandle) {
-    const WS_URL: &str = "ws://127.0.0.1:49082/";
-    const PING_INTERVAL_SECONDS: u64 = 30;
-    const WS_TRY_CONNECTION_INTERVAL_SECONDS: u64 = 60;
-
-    let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
-        error!("Could not retrieve state to initialize vATIS weboscket update loop");
-        return;
-    };
-
-    loop {
-        if let Ok((mut ws_stream, _)) = connect_async(WS_URL).await {
-            let (write, mut read) = ws_stream.split();
-
-            let write_mutex = Mutex::new(write);
-
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    let mut write_lock = write_mutex.lock().unwrap();
-
-                    if let Err(e) = write_lock.send(Message::Ping(Bytes::default())).await {
-                        //warn!(error = ?e, "Error sending ping message to vATIS websocket");
-                        warn!("Error sending ping message to vATIS websocket");
-                    }
-                    tokio::time::sleep(Duration::from_secs(PING_INTERVAL_SECONDS)).await;
-                }
-            });
-
-            while let Some(next) = read.next().await {
-                match next {
-                    Ok(message) => match message {
-                        Message::Ping(bytes) => debug!("Received ping from vATIS websocket"),
-                        Message::Text(_) => {
-                            todo!()
-                        }
-                        Message::Binary(_) => debug!("Received binary bytes from vATIS websocket"),
-                        Message::Pong(_) => debug!("Received pong from vATIS websocket"),
-
-                        Message::Close(_) => debug!("Received close from vATIS websocket"),
-
-                        Message::Frame(_) => debug!("Received frame from vATIS websocket"),
-                    },
-                    Err(e) => {
-                        //warn!(error = ?e, "Error receiving message from vATIS websocket")
-                        warn!("Error receiving message from vATIS websocket")
-                    }
-                }
-            }
-
-            //
-            // write.ws_stream.write()
-        } else {
-            error!("Could not initialize vATIS websocket connection");
-        }
-        tokio::time::sleep(Duration::from_secs(WS_TRY_CONNECTION_INTERVAL_SECONDS)).await;
-    }
-
-    // let (mut ws_stream, _) = connect_async(WS_URL).await.expect("Failed to connect");
-    //
-    // let (mut write, mut read) = ws_stream.split();
-    //
-    // tauri::async_runtime::spawn(async move {
-    //     loop {
-    //         if let Err(e) = write.send(Message::Ping(Bytes::default())).await {
-    //             warn!(error = ?e, "Error sending ping message to vATIS websocket");
-    //         }
-    //         tokio::time::sleep(Duration::from_secs(PING_INTERVAL_SECONDS)).await;
-    //     }
-    // });
-    //
-    // //
-    // // write.ws_stream.write()
 }
