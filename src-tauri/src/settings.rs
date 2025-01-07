@@ -91,7 +91,7 @@ fn write_settings_to_file(settings: &Settings) -> Result<(), anyhow::Error> {
 }
 
 pub fn set_appstate_settings(app: &AppHandle, settings: Settings) {
-    if let Some(state) = app.try_state::<Arc<AppState>>() {
+    if let Some(state) = app.try_state::<AppState>() {
         debug!("Setting in-memory settings: {settings:?}");
         *state.settings.lock().unwrap() = Some(settings);
     } else {
@@ -101,7 +101,7 @@ pub fn set_appstate_settings(app: &AppHandle, settings: Settings) {
 
 pub fn get_appstate_settings(app: &AppHandle) -> Option<Settings> {
     let ret = app
-        .try_state::<Arc<AppState>>()
+        .try_state::<AppState>()
         .and_then(|state| state.settings.lock().unwrap().clone());
     debug!("Retrieved in-memory settings: {ret:?}");
 
@@ -109,7 +109,7 @@ pub fn get_appstate_settings(app: &AppHandle) -> Option<Settings> {
 }
 
 pub fn set_latest_profile_path(app: &AppHandle, path: &PathBuf) {
-    if let Some(state) = app.try_state::<Arc<AppState>>() {
+    if let Some(state) = app.try_state::<AppState>() {
         let mut settings = state.settings.lock().unwrap();
         *settings = (*settings).as_ref().map_or_else(
             || Some(read_settings_or_default()),
@@ -126,7 +126,7 @@ pub fn set_latest_profile_path(app: &AppHandle, path: &PathBuf) {
 }
 
 pub fn get_latest_profile_path(app: &AppHandle) -> Option<PathBuf> {
-    let ret = app.try_state::<Arc<AppState>>().and_then(|state| {
+    let ret = app.try_state::<AppState>().and_then(|state| {
         state
             .settings
             .lock()

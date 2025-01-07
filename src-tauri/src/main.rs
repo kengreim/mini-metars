@@ -73,7 +73,7 @@ fn build_logger<R: Runtime>() -> TauriPlugin<R> {
 fn main() {
     tauri::Builder::default()
         .plugin(build_logger())
-        .manage(Arc::new(AppState::new()))
+        .manage(AppState::new())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
