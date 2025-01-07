@@ -2,8 +2,7 @@
 
 use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
-use crate::vatis;
-use crate::vatis::{AtisType, AtisUpdateValue};
+use crate::vatis::{AtisType, AtisUpdateMessage, AtisUpdateValue};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -30,7 +29,7 @@ impl<T> ExpiringEntry<T> {
     }
 }
 
-pub type VatisCache = HashMap<(String, vatis::AtisType), ExpiringEntry<vatis::AtisUpdateMessage>>;
+pub type VatisCache = HashMap<(String, AtisType), ExpiringEntry<AtisUpdateMessage>>;
 
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
@@ -75,7 +74,7 @@ pub fn get_cached_vatis_update(
     key: (String, AtisType),
     opt: Option<&VatisCache>,
 ) -> Option<&AtisUpdateValue> {
-    opt.as_ref().and_then(|map| {
+    opt.and_then(|map| {
         map.get(&key).map_or_else(
             || None,
             |entry| {
