@@ -73,16 +73,18 @@ impl Default for AppState {
 
 pub fn get_cached_vatis_update(
     key: (String, AtisType),
-    map: &VatisCache,
+    opt: Option<&VatisCache>,
 ) -> Option<&AtisUpdateValue> {
-    map.get(&key).map_or_else(
-        || None,
-        |entry| {
-            if entry.is_expired() {
-                None
-            } else {
-                Some(&entry.value.value)
-            }
-        },
-    )
+    opt.as_ref().and_then(|map| {
+        map.get(&key).map_or_else(
+            || None,
+            |entry| {
+                if entry.is_expired() {
+                    None
+                } else {
+                    Some(&entry.value.value)
+                }
+            },
+        )
+    })
 }

@@ -1,5 +1,4 @@
 use crate::state::{AppState, ExpiringEntry};
-use crate::vatis;
 use crate::vatis::NetworkConnectionStatus::{Connected, Observer};
 use crate::vatis::{AtisUpdateMessage, AtisUpdateRequest};
 use futures_util::stream::SplitSink;
@@ -141,7 +140,7 @@ async fn handle_message(
                         "Received vATIS update message for station {:?} with letter {:?}",
                         update.value.station, update.value.atis_letter
                     );
-                    handle_update_message(update, state)
+                    handle_update_message(&update, state);
                 }
                 Err(e) => {
                     warn!("Error deserializing vATIS update message: {e}");
@@ -177,7 +176,7 @@ async fn handle_message(
     }
 }
 
-fn handle_update_message(update: AtisUpdateMessage, state: State<AppState>) {
+fn handle_update_message(update: &AtisUpdateMessage, state: State<AppState>) {
     const CACHE_TTL_SECONDS: u64 = 60 * 3;
 
     debug!(

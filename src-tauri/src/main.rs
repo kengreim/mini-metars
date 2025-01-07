@@ -242,7 +242,7 @@ struct FetchAtisResponse {
 
 #[tauri::command]
 async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtisResponse, String> {
-    if let (Some(datafeed_fetch), Some(vatis_cache)) = (
+    if let (Some(datafeed_fetch), vatis_cache) = (
         &*state.latest_vatsim_data.lock().unwrap(),
         &*state.vatis_data.lock().unwrap(),
     ) {
@@ -253,9 +253,18 @@ async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtis
             .collect();
 
         let (vatis_combined, vatis_arr, vatis_dep) = (
-            get_cached_vatis_update((icao_id.to_string(), AtisType::Combined), vatis_cache),
-            get_cached_vatis_update((icao_id.to_string(), AtisType::Arrival), vatis_cache),
-            get_cached_vatis_update((icao_id.to_string(), AtisType::Departure), vatis_cache),
+            get_cached_vatis_update(
+                (icao_id.to_string(), AtisType::Combined),
+                vatis_cache.as_ref(),
+            ),
+            get_cached_vatis_update(
+                (icao_id.to_string(), AtisType::Arrival),
+                vatis_cache.as_ref(),
+            ),
+            get_cached_vatis_update(
+                (icao_id.to_string(), AtisType::Departure),
+                vatis_cache.as_ref(),
+            ),
         );
 
         let letter = match (vatis_combined, vatis_arr, vatis_dep) {
