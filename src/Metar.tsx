@@ -120,7 +120,7 @@ export const Metar: Component<MetarProps> = (props) => {
         setMetarTimerHandle(setInterval(updateMetar, 1000 * getRandomInt(120, 150)));
 
         await updateAtis();
-        setLetterTimerHandle(setInterval(updateAtis, 1000 * getRandomInt(20, 30)));
+        setLetterTimerHandle(setInterval(updateAtis, 1000 * getRandomInt(5, 10)));
       }
     } catch (error) {
       await warn(`Frontend error: ${error}`);
