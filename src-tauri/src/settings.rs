@@ -8,7 +8,6 @@ use anyhow::anyhow;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
 const fn true_bool() -> bool {

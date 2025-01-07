@@ -6,7 +6,6 @@ use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::net::TcpStream;
@@ -96,56 +95,6 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
                         if should_break {
                             break;
                         }
-                        // match msg {
-                        //     Some(Ok(Message::Text(msg))) => {
-                        //         match serde_json::from_str::<vatis::AtisUpdateMessage>(msg.as_str()) {
-                        //             Ok(update) => {
-                        //                 debug!("Received vATIS update message for station {:?} with letter {:?}", update.value.station, update.value.atis_letter);
-                        //                 match (update.value.network_connection_status.as_ref(), update.value.station.as_ref(), update.value.atis_type.as_ref()) {
-                        //                     (Some(Connected), Some(station), Some(atis_type)) | (Some(Observer), Some(station), Some(atis_type)) => {
-                        //                          match *state.vatis_data.lock().unwrap() {
-                        //                             Some(ref mut map) => {
-                        //                                 map.insert((station.to_string(), *atis_type), ExpiringEntry::new_with_duration(update.clone(), Duration::from_secs(CACHE_TTL_SECONDS)));
-                        //                                 debug!("Caching vATIS info for station {station}: {:?}", update)
-                        //                             }
-                        //                             _ => {
-                        //                                 warn!("vATIS update hashmap not initialized");
-                        //                             }
-                        //                         }
-                        //                     },
-                        //                     (Some(Connected), _, _) | (Some(Observer), _, _)=> {
-                        //                         debug!("vATIS update message missing either station or letter");
-                        //                     },
-                        //                     _ => {
-                        //                         debug!("Disregarding vATIS message, station not connected");
-                        //                     }
-                        //                 }
-                        //             },
-                        //             Err(e) => {
-                        //                 warn!("Error deserializing vATIS update message: {e}");
-                        //             }
-                        //         }
-                        //     },
-                        //     Some(Ok(Message::Ping(bytes))) => {
-                        //         debug!("Received ping message from vATIS websocket");
-                        //         if let Err(e) = write.send(Message::Pong(bytes)).await {
-                        //             warn!("Error sending pong message to vATIS websocket: {e}");
-                        //         } else {
-                        //             debug!("Responded with pong message to vATIS websocket");
-                        //         }
-                        //     },
-                        //     Some(Ok(m)) => {
-                        //         debug_message(&m);
-                        //     },
-                        //     Some(Err(e)) => {
-                        //         warn!("Error receiving message from vATIS websocket: {e}");
-                        //         break;
-                        //     },
-                        //     None => {
-                        //         debug!("vATIS websocket connection closed. Trying to reconnect");
-                        //         break;
-                        //     },
-                        // }
                     }
                     _ = interval.tick() => {
                         if let Err(e) = write.send(Message::Ping(Bytes::default())).await {
@@ -218,7 +167,7 @@ async fn handle_message(
                             debug!("vATIS update message missing either station or letter");
                         }
                         _ => {
-                            debug!("Disregarding vATIS message, station not connected");
+                            debug!("Disregarding vATIS update message, station not connected or observer");
                         }
                     }
                 }
