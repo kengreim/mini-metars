@@ -14,7 +14,7 @@ use crate::vatis::{AtisType, AtisUpdateValue};
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 use tauri::plugin::TauriPlugin;
 use tauri::{Runtime, State, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
@@ -185,10 +185,7 @@ struct Altimeter {
 }
 
 #[tauri::command]
-async fn fetch_metar(
-    id: &str,
-    state: State<'_, Arc<AppState>>,
-) -> Result<FetchMetarResponse, String> {
+async fn fetch_metar(id: &str, state: State<'_, AppState>) -> Result<FetchMetarResponse, String> {
     if let Ok(client) = &state.get_awc_client().await {
         let ret = client
             .fetch_metar(id)
@@ -217,7 +214,7 @@ async fn fetch_metar(
 }
 
 #[tauri::command]
-async fn lookup_station(id: &str, state: State<'_, Arc<AppState>>) -> Result<Station, String> {
+async fn lookup_station(id: &str, state: State<'_, AppState>) -> Result<Station, String> {
     debug!("Starting Lookup Station Command");
     if let Ok(client) = &state.get_awc_client().await {
         let ret = client
@@ -244,15 +241,12 @@ struct FetchAtisResponse {
 }
 
 #[tauri::command]
-async fn get_atis(
-    icao_id: &str,
-    state: State<'_, Arc<AppState>>,
-) -> Result<FetchAtisResponse, String> {
+async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtisResponse, String> {
     if let (Some(datafeed_fetch), Some(vatis_cache)) = (
         &*state.latest_vatsim_data.lock().unwrap(),
         &*state.vatis_data.lock().unwrap(),
     ) {
-        let found_atis: Vec<&Atis> = datafeed_fetch
+        let datafeed_atis: Vec<&Atis> = datafeed_fetch
             .atis
             .iter()
             .filter(|a| a.callsign.starts_with(icao_id))
@@ -264,7 +258,7 @@ async fn get_atis(
             get_cached_vatis_update((icao_id.to_string(), AtisType::Departure), vatis_cache),
         );
 
-        let letter_str = match (vatis_combined, vatis_arr, vatis_dep) {
+        let letter = match (vatis_combined, vatis_arr, vatis_dep) {
             (Some(combined), _, _) => {
                 let res = vatis_letter(combined);
                 trace!(
@@ -288,34 +282,43 @@ async fn get_atis(
             _ => {
                 trace!(
                     "Found num = {} datafeed ATIS for {} with callsign(s): {:?}",
-                    found_atis.len(),
+                    datafeed_atis.len(),
                     icao_id,
-                    found_atis
+                    datafeed_atis
                         .iter()
                         .map(|a| &a.callsign)
                         .cloned()
                         .collect::<Vec<_>>()
                 );
 
-                match found_atis.len() {
+                match datafeed_atis.len() {
                     0 => "-".to_string(),
-                    1 => parse_atis_code(found_atis[0]),
+                    1 => parse_atis_code(datafeed_atis[0]),
                     _ => format!(
                         "{}/{}",
-                        filter_callsign_and_parse(&found_atis, "_A_"),
-                        filter_callsign_and_parse(&found_atis, "_D_")
+                        filter_callsign_and_parse(&datafeed_atis, "_A_"),
+                        filter_callsign_and_parse(&datafeed_atis, "_D_")
                     ),
                 }
             }
         };
 
-        Ok(FetchAtisResponse {
-            letter: letter_str,
-            texts: found_atis
+        let vatis_texts = [vatis_combined, vatis_arr, vatis_dep]
+            .iter()
+            .flatten()
+            .filter_map(|a| a.text_atis.clone())
+            .collect::<Vec<_>>();
+
+        let texts = if vatis_texts.is_empty() {
+            datafeed_atis
                 .iter()
                 .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
-                .collect(),
-        })
+                .collect()
+        } else {
+            vatis_texts
+        };
+
+        Ok(FetchAtisResponse { letter, texts })
     } else {
         const E: &str = "Could not retrieve datafeed or connect to vATIS websocket";
         warn!("Get Atis Command error: {E}");

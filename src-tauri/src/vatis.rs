@@ -55,7 +55,7 @@ pub struct AtisUpdateStation {
 }
 
 impl AtisUpdateRequest {
-    pub fn new_all() -> Self {
+    pub const fn new_all() -> Self {
         Self {
             msg_type: "getAtis",
             value: None,
@@ -63,8 +63,10 @@ impl AtisUpdateRequest {
     }
 }
 
-impl Into<Message> for AtisUpdateRequest {
-    fn into(self) -> Message {
-        Message::Text(serde_json::to_string(&self).unwrap().into())
+impl TryFrom<AtisUpdateRequest> for Message {
+    type Error = anyhow::Error;
+
+    fn try_from(value: AtisUpdateRequest) -> Result<Self, Self::Error> {
+        Ok(Message::text(serde_json::to_string(&value)?))
     }
 }

@@ -82,7 +82,10 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
             let mut interval = tokio::time::interval(Duration::from_secs(PING_INTERVAL_SECONDS));
 
             // Sent initial getAtis request
-            if let Err(e) = write.send(AtisUpdateRequest::new_all().into()).await {
+            if let Err(e) = write
+                .send(AtisUpdateRequest::new_all().try_into().unwrap())
+                .await
+            {
                 warn!("Error sending getAtis message to vATIS websocket: {e}");
             } else {
                 debug!("Sent getAtis message to vATIS websocket");
@@ -91,7 +94,7 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
             loop {
                 tokio::select! {
                     msg = read.next() => {
-                        let should_break = handle_message(&msg, &mut write, state.clone()).await;
+                        let should_break = handle_message(msg.as_ref(), &mut write, state.clone()).await;
                         if should_break {
                             break;
                         }
@@ -126,7 +129,7 @@ fn debug_message(msg: &Message) {
 }
 
 async fn handle_message(
-    msg: &Option<Result<Message, tungstenite::error::Error>>,
+    msg: Option<&Result<Message, tungstenite::error::Error>>,
     write: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     state: State<'_, AppState>,
 ) -> bool {
@@ -145,8 +148,7 @@ async fn handle_message(
                         update.value.station.as_ref(),
                         update.value.atis_type.as_ref(),
                     ) {
-                        (Some(Connected), Some(station), Some(atis_type))
-                        | (Some(Observer), Some(station), Some(atis_type)) => {
+                        (Some(Connected | Observer), Some(station), Some(atis_type)) => {
                             match *state.vatis_data.lock().unwrap() {
                                 Some(ref mut map) => {
                                     map.insert(
@@ -156,14 +158,17 @@ async fn handle_message(
                                             Duration::from_secs(CACHE_TTL_SECONDS),
                                         ),
                                     );
-                                    debug!("Caching vATIS info for station {station}: {:?}", update)
+                                    debug!(
+                                        "Caching vATIS info for station {station}: {:?}",
+                                        update
+                                    );
                                 }
                                 _ => {
                                     warn!("vATIS update hashmap not initialized");
                                 }
                             }
                         }
-                        (Some(Connected), _, _) | (Some(Observer), _, _) => {
+                        (Some(Connected | Observer), _, _) => {
                             debug!("vATIS update message missing either station or letter");
                         }
                         _ => {
