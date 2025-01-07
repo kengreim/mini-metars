@@ -64,9 +64,9 @@ impl AtisUpdateRequest {
 }
 
 impl TryFrom<AtisUpdateRequest> for Message {
-    type Error = anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: AtisUpdateRequest) -> Result<Self, Self::Error> {
-        Ok(Message::text(serde_json::to_string(&value)?))
+        Ok(Self::text(serde_json::to_string(&value)?))
     }
 }

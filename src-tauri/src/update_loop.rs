@@ -7,7 +7,7 @@ use futures_util::{SinkExt, StreamExt};
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Bytes, Message};
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
@@ -94,7 +94,7 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
             loop {
                 tokio::select! {
                     msg = read.next() => {
-                        let should_break = handle_message(msg.as_ref(), &mut write, state.clone()).await;
+                        let should_break = handle_message(msg.as_ref(), &mut write, &app_handle).await;
                         if should_break {
                             break;
                         }
@@ -131,12 +131,12 @@ fn debug_message(msg: &Message) {
 async fn handle_message(
     msg: Option<&Result<Message, tungstenite::error::Error>>,
     write: &mut SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
-    state: State<'_, AppState>,
+    app_handle: &AppHandle,
 ) -> bool {
     const CACHE_TTL_SECONDS: u64 = 60 * 3;
 
-    match msg {
-        Some(Ok(Message::Text(msg))) => {
+    match (msg, app_handle.try_state::<AppState>()) {
+        (Some(Ok(Message::Text(msg))), Some(state)) => {
             match serde_json::from_str::<vatis::AtisUpdateMessage>(msg.as_str()) {
                 Ok(update) => {
                     debug!(
@@ -182,7 +182,11 @@ async fn handle_message(
             }
             false
         }
-        Some(Ok(Message::Ping(bytes))) => {
+        (Some(Ok(Message::Text(_))), None) => {
+            warn!("Could not retrieve state to handle incoming message from vATIS websocket");
+            false
+        }
+        (Some(Ok(Message::Ping(bytes))), _) => {
             debug!("Received ping message from vATIS websocket");
             if let Err(e) = write.send(Message::Pong(bytes.clone())).await {
                 warn!("Error sending pong message to vATIS websocket: {e}");
@@ -191,15 +195,15 @@ async fn handle_message(
             }
             false
         }
-        Some(Ok(m)) => {
+        (Some(Ok(m)), _) => {
             debug_message(m);
             false
         }
-        Some(Err(e)) => {
+        (Some(Err(e)), _) => {
             warn!("Error receiving message from vATIS websocket: {e}");
             true
         }
-        None => {
+        (None, _) => {
             debug!("vATIS websocket connection closed. Trying to reconnect");
             true
         }
