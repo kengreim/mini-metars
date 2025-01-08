@@ -10,7 +10,7 @@ use crate::settings::{
 };
 use crate::state::{get_cached_vatis_update, AppState};
 use crate::update_loop::{vatis_websocket_loop, vatsim_datafeed_loop};
-use crate::vatis::{AtisType, AtisUpdateValue};
+use crate::vatis::AtisType;
 use log::{debug, error, info, trace, warn};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -242,97 +242,92 @@ struct FetchAtisResponse {
 
 #[tauri::command]
 async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtisResponse, String> {
-    if let (Some(datafeed_fetch), vatis_cache) = (
-        &*state.latest_vatsim_data.lock().unwrap(),
-        &*state.vatis_data.lock().unwrap(),
-    ) {
-        let datafeed_atis: Vec<&Atis> = datafeed_fetch
-            .atis
-            .iter()
-            .filter(|a| a.callsign.starts_with(icao_id))
-            .collect();
+    let datafeed_lock = state.latest_vatsim_data.lock().unwrap();
+    let vatis_cache_lock = state.vatis_data.lock().unwrap();
+    let datafeed_opt = (*datafeed_lock).as_ref();
+    let vatis_cache_opt = (*vatis_cache_lock).as_ref();
 
-        let (vatis_combined, vatis_arr, vatis_dep) = (
-            get_cached_vatis_update(
-                (icao_id.to_string(), AtisType::Combined),
-                vatis_cache.as_ref(),
-            ),
-            get_cached_vatis_update(
-                (icao_id.to_string(), AtisType::Arrival),
-                vatis_cache.as_ref(),
-            ),
-            get_cached_vatis_update(
-                (icao_id.to_string(), AtisType::Departure),
-                vatis_cache.as_ref(),
-            ),
-        );
+    let (vatis_combined, vatis_arr, vatis_dep) = (
+        get_cached_vatis_update((icao_id.to_string(), AtisType::Combined), vatis_cache_opt),
+        get_cached_vatis_update((icao_id.to_string(), AtisType::Arrival), vatis_cache_opt),
+        get_cached_vatis_update((icao_id.to_string(), AtisType::Departure), vatis_cache_opt),
+    );
 
-        let letter = match (vatis_combined, vatis_arr, vatis_dep) {
-            (Some(combined), _, _) => {
-                let res = vatis_letter(combined);
-                trace!(
-                    "Found vATIS combined ATIS letter {} for station {}",
-                    res,
-                    icao_id
-                );
-                res
-            }
-            (_, Some(arr), Some(dep)) => {
-                let arr_res = vatis_letter(arr);
-                let dep_res = vatis_letter(dep);
-                trace!(
+    let vatis_letter = match (vatis_combined, vatis_arr, vatis_dep) {
+        (Some(combined), _, _) => {
+            let res = combined.letter_or("-");
+            trace!(
+                "Found vATIS combined ATIS letter {} for station {}",
+                res,
+                icao_id
+            );
+            Some(res)
+        }
+        (_, Some(arr), Some(dep)) => {
+            let arr_res = arr.letter_or("-");
+            let dep_res = dep.letter_or("-");
+            trace!(
                 "Found vATIS arrival ATIS letter {} and departure ATIS letter {} for station {}",
                 arr_res,
                 dep_res,
                 icao_id
             );
-                format!("{arr_res}/{dep_res}")
-            }
-            _ => {
-                trace!(
-                    "Found num = {} datafeed ATIS for {} with callsign(s): {:?}",
-                    datafeed_atis.len(),
-                    icao_id,
-                    datafeed_atis
-                        .iter()
-                        .map(|a| &a.callsign)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                );
+            Some(format!("{arr_res}/{dep_res}"))
+        }
+        _ => None,
+    };
 
-                match datafeed_atis.len() {
-                    0 => "-".to_string(),
-                    1 => parse_atis_code(datafeed_atis[0]),
-                    _ => format!(
-                        "{}/{}",
-                        filter_callsign_and_parse(&datafeed_atis, "_A_"),
-                        filter_callsign_and_parse(&datafeed_atis, "_D_")
-                    ),
-                }
-            }
-        };
+    let vatis_texts = [vatis_combined, vatis_arr, vatis_dep]
+        .iter()
+        .flatten()
+        .filter_map(|a| a.text_atis.clone())
+        .collect::<Vec<_>>();
 
-        let vatis_texts = [vatis_combined, vatis_arr, vatis_dep]
+    let datafeed_atis = datafeed_opt.map(|datafeed| {
+        datafeed
+            .atis
             .iter()
-            .flatten()
-            .filter_map(|a| a.text_atis.clone())
-            .collect::<Vec<_>>();
+            .filter(|a| a.callsign.starts_with(icao_id))
+            .collect::<Vec<_>>()
+    });
 
-        let texts = if vatis_texts.is_empty() {
+    if let Some(datafeed_atis) = datafeed_atis.as_ref() {
+        trace!(
+            "Found num = {} datafeed ATIS for {} with callsign(s): {:?}",
+            datafeed_atis.len(),
+            icao_id,
             datafeed_atis
                 .iter()
-                .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
-                .collect()
-        } else {
-            vatis_texts
-        };
-
-        Ok(FetchAtisResponse { letter, texts })
-    } else {
-        const E: &str = "Could not retrieve datafeed or connect to vATIS websocket";
-        warn!("Get Atis Command error: {E}");
-        Err(E.to_string())
+                .map(|a| &a.callsign)
+                .cloned()
+                .collect::<Vec<_>>()
+        );
     }
+
+    let datafeed_letter = datafeed_atis.as_ref().map(|atis| match atis.len() {
+        0 => "-".to_string(),
+        1 => parse_atis_code(atis[0]),
+        _ => format!(
+            "{}/{}",
+            filter_callsign_and_parse(atis, "_A_"),
+            filter_callsign_and_parse(atis, "_D_")
+        ),
+    });
+
+    let datafeed_texts = datafeed_atis.map(|atis| {
+        atis.iter()
+            .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
+            .collect::<Vec<_>>()
+    });
+
+    let letter = vatis_letter.unwrap_or_else(|| datafeed_letter.unwrap_or_else(|| "-".to_string()));
+    let texts = if vatis_texts.is_empty() {
+        datafeed_texts.unwrap_or_default()
+    } else {
+        vatis_texts
+    };
+
+    Ok(FetchAtisResponse { letter, texts })
 }
 
 fn filter_callsign_and_parse(atises: &[&Atis], pat: &str) -> String {
@@ -385,13 +380,6 @@ fn parse_code_from_text(text_lines: &[String]) -> Option<char> {
         },
         |c| c[1].chars().next(),
     )
-}
-
-fn vatis_letter(value: &AtisUpdateValue) -> String {
-    value
-        .atis_letter
-        .as_ref()
-        .map_or_else(|| "-".to_string(), std::clone::Clone::clone)
 }
 
 fn nato_to_char(str: &str) -> Option<char> {

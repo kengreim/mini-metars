@@ -39,6 +39,14 @@ pub struct AtisUpdateValue {
     pub text_atis: Option<String>,
 }
 
+impl AtisUpdateValue {
+    pub fn letter_or(&self, str: &str) -> String {
+        self.atis_letter
+            .as_ref()
+            .map_or_else(|| str.to_string(), |l| l.to_string())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AtisUpdateRequest {
     #[serde(rename = "type")]
