@@ -248,9 +248,9 @@ async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtis
     let vatis_cache_opt = (*vatis_cache_lock).as_ref();
 
     let (vatis_combined, vatis_arr, vatis_dep) = (
-        get_cached_vatis_update((icao_id.to_string(), AtisType::Combined), vatis_cache_opt),
-        get_cached_vatis_update((icao_id.to_string(), AtisType::Arrival), vatis_cache_opt),
-        get_cached_vatis_update((icao_id.to_string(), AtisType::Departure), vatis_cache_opt),
+        get_cached_vatis_update(&(icao_id.to_string(), AtisType::Combined), vatis_cache_opt),
+        get_cached_vatis_update(&(icao_id.to_string(), AtisType::Arrival), vatis_cache_opt),
+        get_cached_vatis_update(&(icao_id.to_string(), AtisType::Departure), vatis_cache_opt),
     );
 
     let vatis_letter = match (vatis_combined, vatis_arr, vatis_dep) {

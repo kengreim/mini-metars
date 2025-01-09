@@ -70,10 +70,10 @@ impl Default for AppState {
     }
 }
 
-pub fn get_cached_vatis_update(
-    key: (String, AtisType),
-    opt: Option<&VatisCache>,
-) -> Option<&AtisUpdateValue> {
+pub fn get_cached_vatis_update<'a, 'b>(
+    key: &'a (String, AtisType),
+    opt: Option<&'b VatisCache>,
+) -> Option<&'b AtisUpdateValue> {
     opt.and_then(|map| {
         map.get(&key).map_or_else(
             || None,
