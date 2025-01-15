@@ -23,6 +23,13 @@ pub enum AtisType {
     Arrival,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValueUnit {
+    pub actual_value: f64,
+    pub actual_unit: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AtisUpdateValue {
@@ -33,8 +40,9 @@ pub struct AtisUpdateValue {
     pub metar: Option<String>,
     pub wind: Option<String>,
     pub altimeter: Option<String>,
-    pub pressure_unit: Option<String>,
-    pub pressure_value: Option<f64>,
+    pub pressure: Option<ValueUnit>,
+    pub ceiling: Option<ValueUnit>,
+    pub prevailing_visibility: Option<ValueUnit>,
     pub is_new_atis: Option<bool>,
     pub text_atis: Option<String>,
 }
