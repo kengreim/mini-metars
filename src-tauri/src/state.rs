@@ -4,7 +4,7 @@ use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
 use crate::vatis::{AtisType, AtisUpdateMessage, AtisUpdateValue};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
@@ -34,9 +34,9 @@ pub type VatisCache = HashMap<(String, AtisType), ExpiringEntry<AtisUpdateMessag
 pub struct AppState {
     awc_client: OnceCell<Result<AviationWeatherCenterApi, anyhow::Error>>,
     vatsim_client: OnceCell<Result<Vatsim, VatsimUtilError>>,
-    pub latest_vatsim_data: Mutex<Option<V3ResponseData>>,
-    pub vatis_data: Mutex<Option<VatisCache>>,
-    pub settings: Mutex<Option<Settings>>,
+    pub latest_vatsim_data: RwLock<Option<V3ResponseData>>,
+    pub vatis_data: RwLock<Option<VatisCache>>,
+    pub settings: RwLock<Option<Settings>>,
 }
 
 impl AppState {
@@ -45,9 +45,9 @@ impl AppState {
         Self {
             awc_client: OnceCell::const_new(),
             vatsim_client: OnceCell::const_new(),
-            latest_vatsim_data: Mutex::new(None),
-            vatis_data: Mutex::new(None),
-            settings: Mutex::new(None),
+            latest_vatsim_data: RwLock::new(None),
+            vatis_data: RwLock::new(None),
+            settings: RwLock::new(None),
         }
     }
 

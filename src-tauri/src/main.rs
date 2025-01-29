@@ -35,9 +35,18 @@ const MAIN_WINDOW_LABEL: &str = "main";
 fn build_logger<R: Runtime>() -> TauriPlugin<R> {
     let builder = tauri_plugin_log::Builder::new()
         .clear_targets()
+        //.level(log::LevelFilter::Trace);
         .level(log::LevelFilter::Info)
         .level_for(
             "mini_metars",
+            if cfg!(debug_assertions) {
+                log::LevelFilter::Trace
+            } else {
+                log::LevelFilter::Debug
+            },
+        )
+        .level_for(
+            "webview",
             if cfg!(debug_assertions) {
                 log::LevelFilter::Trace
             } else {
@@ -242,8 +251,8 @@ struct FetchAtisResponse {
 
 #[tauri::command]
 async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtisResponse, String> {
-    let datafeed_lock = state.latest_vatsim_data.lock().unwrap();
-    let vatis_cache_lock = state.vatis_data.lock().unwrap();
+    let datafeed_lock = state.latest_vatsim_data.read().unwrap();
+    let vatis_cache_lock = state.vatis_data.read().unwrap();
     let datafeed_opt = (*datafeed_lock).as_ref();
     let vatis_cache_opt = (*vatis_cache_lock).as_ref();
 

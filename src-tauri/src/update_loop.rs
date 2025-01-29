@@ -30,7 +30,7 @@ pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
             Ok(data) => {
                 let is_duplicate = state
                     .latest_vatsim_data
-                    .lock()
+                    .read()
                     .unwrap()
                     .as_ref()
                     .map_or_else(
@@ -46,7 +46,7 @@ pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
                     sleep_duration = Duration::from_secs(1);
                 } else {
                     debug!("Fetched new VATSIM datafeed: {}", &data.general.update);
-                    *state.latest_vatsim_data.lock().unwrap() = Some(data);
+                    *state.latest_vatsim_data.write().unwrap() = Some(data);
                 }
             }
             Err(e) => {
@@ -69,7 +69,7 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
         return;
     };
 
-    *state.vatis_data.lock().unwrap() = Some(HashMap::new());
+    *state.vatis_data.write().unwrap() = Some(HashMap::new());
 
     debug!("Starting vATIS websocket update loop");
     loop {
@@ -189,7 +189,7 @@ fn handle_update_message(update: &AtisUpdateMessage, state: State<AppState>) {
         update.value.atis_type.as_ref(),
     ) {
         (Some(Connected | Observer), Some(station), Some(atis_type)) => {
-            match *state.vatis_data.lock().unwrap() {
+            match *state.vatis_data.write().unwrap() {
                 Some(ref mut map) => {
                     map.insert(
                         (station.to_string(), *atis_type),
