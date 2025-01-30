@@ -291,6 +291,7 @@ async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtis
         .flatten()
         .filter_map(|a| a.text_atis.clone())
         .collect::<Vec<_>>();
+    drop(vatis_cache_lock);
 
     let datafeed_atis = datafeed_opt.map(|datafeed| {
         datafeed
@@ -328,6 +329,7 @@ async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtis
             .filter_map(|a| a.text_atis.as_ref().map(|t| t.join(" ")))
             .collect::<Vec<_>>()
     });
+    drop(datafeed_lock);
 
     let letter = vatis_letter.unwrap_or_else(|| datafeed_letter.unwrap_or_else(|| "-".to_string()));
     let texts = if vatis_texts.is_empty() {
