@@ -8,27 +8,27 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-rc.2", features = [] }
+tauri-build = { version = "2.0.5", features = [] }
 
 [dependencies]
-tauri = { version = "2.2.0", features = ["default"] }
+tauri = { version = "2.2.5", features = ["default"] }
 tauri-plugin-shell = "2.2.0"
 serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.134"
+serde_json = "1.0.138"
 anyhow = "1.0.95"
 flate2 = "1.0.35"
 reqwest = { version = "0.12.12", features = ["json"] }
-tokio = { version = "1.42.0", features = ["macros"] }
+tokio = { version = "1.43.0", features = ["macros"] }
 chrono = { version = "0.4.39", features = ["serde"] }
 vatsim_utils = "0.5.3"
 regex = "1.11.1"
-dirs = "5.0.1"
+dirs = "6.0.0"
 tauri-plugin-dialog = "2.2.0"
 tauri-plugin-os = "2.2.0"
-tauri-plugin-log = "2.2.0"
-log = "0.4.22"
-octocrab = "0.42.1"
-semver = "1.0.24"
+tauri-plugin-log = "2.2.1"
+log = "0.4.25"
+octocrab = "0.43.0"
+semver = "1.0.25"
 tokio-tungstenite = "0.26.1"
 futures-util = "0.3.31"
 parking_lot = "0.12.3"
