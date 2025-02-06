@@ -28,15 +28,10 @@ pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
         let mut sleep_duration = Duration::from_secs(15);
         match client.get_v3_data().await {
             Ok(data) => {
-                let is_duplicate = state
-                    .latest_vatsim_data
-                    .read()
-                    .unwrap()
-                    .as_ref()
-                    .map_or_else(
-                        || false,
-                        |old_data| old_data.general.update == data.general.update,
-                    );
+                let is_duplicate = state.latest_vatsim_data.read().as_ref().map_or_else(
+                    || false,
+                    |old_data| old_data.general.update == data.general.update,
+                );
 
                 if is_duplicate {
                     debug!(
@@ -46,7 +41,7 @@ pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
                     sleep_duration = Duration::from_secs(1);
                 } else {
                     debug!("Fetched new VATSIM datafeed: {}", &data.general.update);
-                    *state.latest_vatsim_data.write().unwrap() = Some(data);
+                    *state.latest_vatsim_data.write() = Some(data);
                 }
             }
             Err(e) => {
@@ -69,7 +64,7 @@ pub async fn vatis_websocket_loop(app_handle: AppHandle) {
         return;
     };
 
-    *state.vatis_data.write().unwrap() = Some(HashMap::new());
+    *state.vatis_data.write() = Some(HashMap::new());
 
     debug!("Starting vATIS websocket update loop");
     loop {
@@ -189,7 +184,7 @@ fn handle_update_message(update: &AtisUpdateMessage, state: State<AppState>) {
         update.value.atis_type.as_ref(),
     ) {
         (Some(Connected | Observer), Some(station), Some(atis_type)) => {
-            match *state.vatis_data.write().unwrap() {
+            match *state.vatis_data.write() {
                 Some(ref mut map) => {
                     map.insert(
                         (station.to_string(), *atis_type),

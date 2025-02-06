@@ -3,8 +3,8 @@
 use crate::awc::AviationWeatherCenterApi;
 use crate::settings::Settings;
 use crate::vatis::{AtisType, AtisUpdateMessage, AtisUpdateValue};
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tokio::sync::OnceCell;
 use vatsim_utils::errors::VatsimUtilError;
