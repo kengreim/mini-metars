@@ -12,9 +12,12 @@ use crate::state::{get_cached_vatis_update, AppState};
 use crate::update_loop::{vatis_websocket_loop, vatsim_datafeed_loop};
 use crate::vatis::AtisType;
 use log::{debug, error, info, trace, warn};
+use parking_lot::deadlock;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
+use std::thread;
+use std::time::Duration;
 use tauri::plugin::TauriPlugin;
 use tauri::{Runtime, State, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
@@ -80,6 +83,29 @@ fn build_logger<R: Runtime>() -> TauriPlugin<R> {
 }
 
 fn main() {
+    // Deadlock detection loop on dev builds
+    #[cfg(debug_assertions)]
+    thread::spawn(move || {
+        println!("starting deadlock check loop");
+        loop {
+            thread::sleep(Duration::from_secs(10));
+            let deadlocks = deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                println!("No deadlocks detected");
+                continue;
+            }
+
+            println!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                println!("Deadlock #{}", i);
+                for t in threads {
+                    println!("Thread Id {:#?}", t.thread_id());
+                    println!("{:#?}", t.backtrace());
+                }
+            }
+        }
+    });
+
     tauri::Builder::default()
         .plugin(build_logger())
         .manage(AppState::new())

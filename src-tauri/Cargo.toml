@@ -31,7 +31,7 @@ octocrab = "0.43.0"
 semver = "1.0.25"
 tokio-tungstenite = "0.26.1"
 futures-util = "0.3.31"
-parking_lot = "0.12.3"
+parking_lot = { version = "0.12.3", features = ["deadlock_detection"] }
 
 # Optimize for smaller binary size
 [profile.release]
