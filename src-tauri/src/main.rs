@@ -12,16 +12,16 @@ use crate::state::{get_cached_vatis_update, AppState};
 use crate::update_loop::{vatis_websocket_loop, vatsim_datafeed_loop};
 use crate::vatis::AtisType;
 use log::{debug, error, info, trace, warn};
-use parking_lot::deadlock;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
-use std::thread;
-use std::time::Duration;
 use tauri::plugin::TauriPlugin;
 use tauri::{Runtime, State, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
 use vatsim_utils::models::Atis;
+
+#[cfg(debug_assertions)]
+use {parking_lot::deadlock, std::thread, std::time::Duration};
 
 mod app_update;
 mod awc;
@@ -91,7 +91,6 @@ fn main() {
             thread::sleep(Duration::from_secs(10));
             let deadlocks = deadlock::check_deadlock();
             if deadlocks.is_empty() {
-                println!("No deadlocks detected");
                 continue;
             }
 
