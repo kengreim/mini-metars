@@ -5,9 +5,9 @@ use crate::settings::{
     set_latest_profile_path,
 };
 use crate::window::{
-    apply_window_state, get_window_state, set_always_on_top_settings_checked, WindowState,
+    WindowState, apply_window_state, get_window_state, set_always_on_top_settings_checked,
 };
-use crate::{utils, MAIN_WINDOW_LABEL};
+use crate::{MAIN_WINDOW_LABEL, utils};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -181,7 +181,7 @@ pub fn save_profile_as(mut profile: Profile, app: AppHandle) -> Result<(), Strin
 }
 
 fn save_profile(profile: &Profile, path: &PathBuf, app: &AppHandle) -> Result<(), String> {
-    debug!("Trying to write profile to {:?}", path);
+    debug!("Trying to write profile to {path:?}");
     match write_profile_to_file(path, profile) {
         Ok(()) => {
             debug!("Successfully wrote profile: {profile:?}");

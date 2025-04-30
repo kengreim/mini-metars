@@ -75,7 +75,7 @@ pub fn get_cached_vatis_update<'a, 'b>(
     opt: Option<&'b VatisCache>,
 ) -> Option<&'b AtisUpdateValue> {
     opt.and_then(|map| {
-        map.get(&key).map_or_else(
+        map.get(key).map_or_else(
             || None,
             |entry| {
                 if entry.is_expired() {

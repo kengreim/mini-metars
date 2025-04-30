@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Formatter;
+use std::fmt::Write as _;
 use std::io::Read;
 
 const BASE_URL: &str = "https://aviationweather.gov/";
@@ -236,9 +237,9 @@ impl MetarDto {
                 StringOrI32::I32(i) => format!("{i:03}"),
             };
             return_s.push_str(&dir_str);
-            return_s.push_str(&format!("{wind_spd:02}"));
+            let _ = write!(return_s, "{wind_spd:02}");
             if let Some(gusts) = self.wgst {
-                return_s.push_str(&format!("G{gusts}"));
+                let _ = write!(return_s, "G{gusts}");
             }
             return_s.push_str("KT");
 

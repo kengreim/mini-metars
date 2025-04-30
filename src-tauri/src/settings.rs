@@ -1,6 +1,6 @@
 #![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 
-use crate::profiles::{load_profile_from_path, Profile};
+use crate::profiles::{Profile, load_profile_from_path};
 use crate::state::AppState;
 use crate::utils;
 use crate::utils::deserialize_from_file;
@@ -78,7 +78,7 @@ pub fn read_settings_or_default() -> Settings {
 }
 
 fn write_settings_to_file(settings: &Settings) -> Result<(), anyhow::Error> {
-    debug!("Starting write settings to file: {:?}", settings);
+    debug!("Starting write settings to file: {settings:?}");
     settings_path().map_or_else(
         || {
             const E: &str = "Could not construct path to settings.json";

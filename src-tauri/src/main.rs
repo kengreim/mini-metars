@@ -8,7 +8,7 @@ use crate::profiles::read_profile_from_file;
 use crate::settings::{
     get_appstate_settings, get_latest_profile_path, read_settings_or_default, set_appstate_settings,
 };
-use crate::state::{get_cached_vatis_update, AppState};
+use crate::state::{AppState, get_cached_vatis_update};
 use crate::update_loop::{vatis_websocket_loop, vatsim_datafeed_loop};
 use crate::vatis::AtisType;
 use log::{debug, error, info, trace, warn};
@@ -96,7 +96,7 @@ fn main() {
 
             println!("{} deadlocks detected", deadlocks.len());
             for (i, threads) in deadlocks.iter().enumerate() {
-                println!("Deadlock #{}", i);
+                println!("Deadlock #{i}");
                 for t in threads {
                     println!("Thread Id {:#?}", t.thread_id());
                     println!("{:#?}", t.backtrace());
@@ -290,21 +290,14 @@ async fn get_atis(icao_id: &str, state: State<'_, AppState>) -> Result<FetchAtis
     let vatis_letter = match (vatis_combined, vatis_arr, vatis_dep) {
         (Some(combined), _, _) => {
             let res = combined.letter_or("-");
-            trace!(
-                "Found vATIS combined ATIS letter {} for station {}",
-                res,
-                icao_id
-            );
+            trace!("Found vATIS combined ATIS letter {res} for station {icao_id}");
             Some(res)
         }
         (_, Some(arr), Some(dep)) => {
             let arr_res = arr.letter_or("-");
             let dep_res = dep.letter_or("-");
             trace!(
-                "Found vATIS arrival ATIS letter {} and departure ATIS letter {} for station {}",
-                arr_res,
-                dep_res,
-                icao_id
+                "Found vATIS arrival ATIS letter {arr_res} and departure ATIS letter {dep_res} for station {icao_id}"
             );
             Some(format!("{arr_res}/{dep_res}"))
         }
@@ -381,9 +374,7 @@ fn parse_atis_code(atis: &Atis) -> String {
             {
                 trace!(
                     "Parsed letters for {}, code: {}, text parse:{}",
-                    atis.callsign,
-                    c,
-                    text_c
+                    atis.callsign, c, text_c
                 );
                 match (text_c as i32) - (c as i32) {
                     1 => text_c.to_string(),

@@ -9,7 +9,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::{Bytes, Message};
-use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite};
 
 pub async fn vatsim_datafeed_loop(app_handle: AppHandle) {
     let Some(state) = app_handle.try_state::<AppState>() else {
@@ -193,7 +193,7 @@ fn handle_update_message(update: &AtisUpdateMessage, state: State<AppState>) {
                             Duration::from_secs(CACHE_TTL_SECONDS),
                         ),
                     );
-                    debug!("Caching vATIS info for station {station}: {:?}", update);
+                    debug!("Caching vATIS info for station {station}: {update:?}");
                 }
                 _ => {
                     warn!("vATIS update hashmap not initialized");

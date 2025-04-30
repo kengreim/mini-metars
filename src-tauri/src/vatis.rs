@@ -51,7 +51,7 @@ impl AtisUpdateValue {
     pub fn letter_or(&self, str: &str) -> String {
         self.atis_letter
             .as_ref()
-            .map_or_else(|| str.to_string(), |l| l.to_string())
+            .map_or_else(|| str.to_string(), std::string::ToString::to_string)
     }
 }
 
