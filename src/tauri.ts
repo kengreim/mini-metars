@@ -6,7 +6,6 @@ interface CloudLayer {
 }
 
 interface MetarDto {
-  metarId: number;
   icaoId: string;
   receiptTime: string;
   obsTime: string;
@@ -34,11 +33,11 @@ interface MetarDto {
   vertVis?: number;
   metarType: string;
   rawOb: string;
-  mostRecent: number;
+  mostRecent?: number;
   lat: number;
   lon: number;
   elev: number;
-  prior: number;
+  prior?: number;
   name: string;
   clouds: CloudLayer[];
 }

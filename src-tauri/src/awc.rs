@@ -177,8 +177,6 @@ pub struct Station {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetarDto {
-    #[serde(rename = "metar_id")]
-    pub metar_id: i64,
     pub icao_id: String,
     pub receipt_time: String,
     #[serde(deserialize_with = "ts_seconds::deserialize")]
@@ -207,11 +205,11 @@ pub struct MetarDto {
     pub vert_vis: Option<i32>,
     pub metar_type: String,
     pub raw_ob: String,
-    pub most_recent: i32,
+    pub most_recent: Option<i32>,
     pub lat: f64,
     pub lon: f64,
     pub elev: i32,
-    pub prior: i32,
+    pub prior: Option<i32>,
     pub name: String,
     pub clouds: Vec<Cloud>,
 }
